@@ -10,6 +10,7 @@ import '../models/game.dart';
 import '../models/game_console.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cover_art_search.dart';
 
 /// Form screen for adding or editing a game.
 class GameFormScreen extends StatefulWidget {
@@ -234,46 +235,81 @@ class _GameFormScreenState extends State<GameFormScreen> {
   }
 
   Widget _buildCoverArtPicker() {
-    return GestureDetector(
-      onTap: _pickCoverArt,
-      child: Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.textSecondary.withOpacity(0.3),
-            style: BorderStyle.solid,
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: _showCoverArtOptions,
+          child: Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: AppTheme.cardDark,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.textSecondary.withOpacity(0.3),
+                style: BorderStyle.solid,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _coverArtPath != null
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.file(
+                        File(_coverArtPath!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _buildPickerPlaceholder(),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            icon: const Icon(Icons.edit, size: 18),
+                            color: Colors.white,
+                            onPressed: _showCoverArtOptions,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : _buildPickerPlaceholder(),
           ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: _coverArtPath != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.file(
-                    File(_coverArtPath!),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPickerPlaceholder(),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.black54,
-                      child: IconButton(
-                        icon: const Icon(Icons.edit, size: 18),
-                        color: Colors.white,
-                        onPressed: _pickCoverArt,
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : _buildPickerPlaceholder(),
-      ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _pickCoverArt,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('From File'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.textSecondary,
+                  side: BorderSide(
+                      color: AppTheme.textSecondary.withOpacity(0.3)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _searchCoverArt,
+                icon: const Icon(Icons.search, size: 18),
+                label: const Text('Search Online'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.accentCyan,
+                  side: BorderSide(
+                      color: AppTheme.accentCyan.withOpacity(0.5)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -297,6 +333,77 @@ class _GameFormScreenState extends State<GameFormScreen> {
         ],
       ),
     );
+  }
+
+  void _showCoverArtOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceDark,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.folder_open),
+              title: const Text('Choose from file'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickCoverArt();
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.search, color: AppTheme.accentCyan),
+              title: const Text('Search online'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _searchCoverArt();
+              },
+            ),
+            if (_coverArtPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline,
+                    color: AppTheme.errorRed),
+                title: const Text('Remove cover art'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() => _coverArtPath = null);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _searchCoverArt() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a game title first')),
+      );
+      return;
+    }
+
+    // Find console name for better search results
+    String? consoleName;
+    if (_selectedConsoleId != null) {
+      final provider = context.read<GameProvider>();
+      final console = provider.consoles
+          .where((c) => c.id == _selectedConsoleId)
+          .firstOrNull;
+      consoleName = console?.name;
+    }
+
+    final result = await CoverArtSearchDialog.show(
+      context,
+      gameTitle: title,
+      consoleName: consoleName,
+    );
+
+    if (result != null) {
+      setState(() => _coverArtPath = result);
+    }
   }
 
   Widget _buildGenreField(GameProvider provider) {

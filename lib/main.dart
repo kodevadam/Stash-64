@@ -5,6 +5,7 @@ import 'data/database_helper.dart';
 import 'providers/game_provider.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/kiosk_wrapper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +25,9 @@ class Stash64App extends StatelessWidget {
         title: 'Stash 64',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const HomeScreen(),
+        home: const KioskWrapper(
+          child: HomeScreen(),
+        ),
       ),
     );
   }

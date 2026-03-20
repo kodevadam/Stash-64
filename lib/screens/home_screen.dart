@@ -8,6 +8,7 @@ import '../widgets/game_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'game_detail_screen.dart';
 import 'game_form_screen.dart';
+import 'settings_screen.dart';
 
 /// The main browse screen — a kiosk-style grid of game cover art.
 class HomeScreen extends StatelessWidget {
@@ -32,6 +33,15 @@ class HomeScreen extends StatelessWidget {
             iconSize: 28,
             tooltip: 'Add Game',
             onPressed: () => _navigateToAddGame(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            iconSize: 28,
+            tooltip: 'Settings',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),

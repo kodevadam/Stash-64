@@ -6,11 +6,15 @@ A retro game collection browser built with Flutter. Designed as a touchscreen ki
 
 - **Browse by console** — N64, SNES, Genesis, NES, PlayStation, Game Boy, Dreamcast, Atari, and any custom consoles you add
 - **Filter by genre, player count, storage location** — find that perfect 4-player game night pick
-- **Cover art display** — add box art or custom images for each game
-- **Screenshots** — attach and browse in-game screenshots with fullscreen viewer
+- **Cover art display** — add box art from files or search online to auto-download covers
+- **Cover art search** — search RAWG and other APIs to find and download box art automatically
+- **Screenshots** — attach and browse in-game screenshots with fullscreen swipe viewer
 - **Storage locations** — track exactly where each game lives (Drawer 1, Shelf A, etc.)
 - **Favorites** — star your top games and filter to favorites
 - **Search** — instant search across your collection
+- **Console management** — add, edit, and remove consoles with custom colors
+- **Import/export** — full JSON backup and restore of your collection, including images (base64-encoded)
+- **Kiosk mode** — fullscreen toggle (F11 / double-tap), auto-hide cursor after 5s idle, attract mode screensaver after 5min idle
 - **Touch-optimized** — large tap targets (56dp), smooth scrolling, designed for touchscreen kiosks
 - **Dark retro theme** — a warm dark UI with gold accents that fits the vibe
 
@@ -61,7 +65,17 @@ The binary will be at `build/linux/<arch>/release/bundle/stash_64`.
 
 This produces a portable `Stash_64-<arch>.AppImage` that runs on any Linux distribution.
 
-### Raspberry Pi Setup
+### Generate App Icon
+
+```bash
+# Requires librsvg2-bin, inkscape, or imagemagick
+sudo apt install librsvg2-bin
+./scripts/generate-icon.sh
+```
+
+Generates PNG icons at 256, 512, and 1024px from the SVG source at `assets/icon/stash64_icon.svg`.
+
+### Raspberry Pi Kiosk Setup
 
 1. Install Flutter on your Pi (or cross-compile on a desktop):
    ```bash
@@ -81,30 +95,68 @@ This produces a portable `Stash_64-<arch>.AppImage` that runs on any Linux distr
 
 3. For a dedicated touchscreen kiosk, consider running in a minimal window manager like `openbox` to eliminate desktop chrome.
 
+4. The app automatically enters attract mode (screensaver) after 5 minutes of inactivity. Touch or press any key to wake.
+
+## Kiosk Mode Controls
+
+| Action | Trigger |
+|--------|---------|
+| Toggle fullscreen | F11 or double-tap |
+| Exit fullscreen | Escape |
+| Dismiss attract mode | Touch anywhere or any key |
+| Cursor auto-hides | After 5 seconds of inactivity |
+| Attract mode activates | After 5 minutes of inactivity |
+
+## Import & Export
+
+From Settings, you can:
+- **Export** your entire collection (consoles, games, cover art, screenshots) as a single JSON file with images base64-encoded
+- **Import** from a previously exported JSON backup, adding new consoles and games without duplicating existing consoles
+
+Backup files are saved to your documents directory as `stash64_backup_<timestamp>.json`.
+
 ## Project Structure
 
 ```
 lib/
-├── main.dart                 # App entry point
+├── main.dart                      # App entry point with kiosk wrapper
 ├── models/
-│   ├── game.dart             # Game data model
-│   ├── game_console.dart     # Console data model
-│   └── filter_state.dart     # Filter/sort state
+│   ├── game.dart                  # Game data model
+│   ├── game_console.dart          # Console data model
+│   └── filter_state.dart          # Filter/sort state
 ├── data/
-│   ├── database_helper.dart  # SQLite database layer
-│   └── sample_data.dart      # First-launch seed data
+│   ├── database_helper.dart       # SQLite database layer
+│   ├── sample_data.dart           # First-launch seed data
+│   └── import_export_helper.dart  # JSON backup/restore
 ├── providers/
-│   └── game_provider.dart    # State management (ChangeNotifier)
+│   └── game_provider.dart         # State management (ChangeNotifier)
 ├── screens/
-│   ├── home_screen.dart      # Main grid browser
-│   ├── game_detail_screen.dart  # Game info + screenshots
-│   └── game_form_screen.dart # Add/edit game form
+│   ├── home_screen.dart           # Main grid browser
+│   ├── game_detail_screen.dart    # Game info + screenshots
+│   ├── game_form_screen.dart      # Add/edit game form with cover search
+│   ├── console_management_screen.dart  # Console CRUD with color picker
+│   └── settings_screen.dart       # Settings, import/export, kiosk controls
 ├── widgets/
-│   ├── game_card.dart        # Grid card with cover art
-│   ├── filter_drawer.dart    # Filter/sort side drawer
-│   └── search_bar_widget.dart
+│   ├── game_card.dart             # Grid card with cover art
+│   ├── filter_drawer.dart         # Filter/sort side drawer
+│   ├── search_bar_widget.dart     # Touch-friendly search
+│   ├── cover_art_search.dart      # Online cover art search dialog
+│   └── kiosk_wrapper.dart         # Fullscreen, cursor hide, attract mode
 └── theme/
-    └── app_theme.dart        # Dark retro theme
+    └── app_theme.dart             # Dark retro theme
+
+scripts/
+├── build-appimage.sh              # AppImage packager
+└── generate-icon.sh               # SVG to PNG icon generator
+
+appimage/
+├── AppImageBuilder.yml            # AppImage recipe
+└── stash64.desktop                # Desktop entry
+
+assets/
+├── covers/                        # Bundled cover art (gitkeep)
+└── icon/
+    └── stash64_icon.svg           # App icon source (controller + "64")
 ```
 
 ## Data Storage

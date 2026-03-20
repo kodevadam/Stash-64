@@ -17,6 +17,8 @@ dependencies:
   cached_network_image: ^3.3.0
   image_picker: ^1.0.0
   file_picker: ^6.0.0
+  http: ^1.1.0
+  share_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:
@@ -27,3 +29,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/covers/
+    - assets/icon/
