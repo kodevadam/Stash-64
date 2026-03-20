@@ -1,0 +1,36 @@
+version: 1
+script:
+  - rm -rf AppDir || true
+  - mkdir -p AppDir/usr/bin
+  - mkdir -p AppDir/usr/lib
+  - mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+  - mkdir -p AppDir/usr/share/applications
+  - cp -r ../build/linux/*/release/bundle/* AppDir/usr/bin/
+  - cp appimage/stash64.desktop AppDir/usr/share/applications/
+  - cp appimage/stash64.png AppDir/usr/share/icons/hicolor/256x256/apps/ 2>/dev/null || true
+
+AppDir:
+  path: ./AppDir
+  app_info:
+    id: com.stash64.app
+    name: Stash 64
+    icon: stash64
+    version: 1.0.0
+    exec: usr/bin/stash_64
+  runtime:
+    env:
+      APPDIR_LIBRARY_PATH: $APPDIR/usr/lib
+
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: deb http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse
+    include:
+      - libgtk-3-0
+      - libsqlite3-0
+
+  files:
+    include: []
+    exclude:
+      - usr/share/man
+      - usr/share/doc

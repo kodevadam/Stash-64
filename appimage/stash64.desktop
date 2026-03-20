@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Stash 64
+Comment=Retro game collection browser
+Exec=stash_64
+Icon=stash64
+Type=Application
+Categories=Game;Utility;
+Keywords=retro;games;collection;n64;snes;genesis;
+StartupWMClass=stash_64

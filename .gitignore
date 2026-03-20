@@ -1,0 +1,35 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Linux build artifacts
+linux/flutter/ephemeral/
+
+# AppImage build
+AppDir/
+*.AppImage
+
+# Pub
+.pub-cache/
+pubspec.lock
+
+# Coverage
+coverage/
+
+# Generated
+*.g.dart
+*.freezed.dart
