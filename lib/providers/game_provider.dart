@@ -71,11 +71,12 @@ class GameProvider extends ChangeNotifier {
 
   // --- Game CRUD ---
 
-  Future<void> addGame(Game game) async {
-    await _db.insertGame(game);
+  Future<int> addGame(Game game) async {
+    final id = await _db.insertGame(game);
     await _refreshAll();
     _games = await _db.getGames(_filterState);
     notifyListeners();
+    return id;
   }
 
   Future<void> updateGame(Game game) async {

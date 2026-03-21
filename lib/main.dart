@@ -37,7 +37,12 @@ class Stash64App extends StatelessWidget {
                 data: mediaQuery.copyWith(
                   textScaler: TextScaler.linear(settings.uiScale),
                 ),
-                child: child!,
+                child: IconTheme(
+                  data: IconThemeData(
+                    size: 24 * settings.uiScale,
+                  ),
+                  child: child!,
+                ),
               );
             },
             home: const KioskWrapper(

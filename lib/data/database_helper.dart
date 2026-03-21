@@ -10,7 +10,7 @@ import '../models/filter_state.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'stash64.db';
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -66,6 +66,8 @@ class DatabaseHelper {
         release_year INTEGER,
         notes TEXT,
         is_favorite INTEGER NOT NULL DEFAULT 0,
+        pricecharting_price REAL,
+        pricecharting_url TEXT,
         FOREIGN KEY (console_id) REFERENCES consoles (id)
       )
     ''');
@@ -101,6 +103,10 @@ class DatabaseHelper {
       await db.execute("ALTER TABLE games ADD COLUMN room TEXT DEFAULT ''");
       await db.execute('CREATE INDEX IF NOT EXISTS idx_games_region ON games (region)');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_games_room ON games (room)');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE games ADD COLUMN pricecharting_price REAL');
+      await db.execute('ALTER TABLE games ADD COLUMN pricecharting_url TEXT');
     }
   }
 

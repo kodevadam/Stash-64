@@ -363,6 +363,7 @@ class TouchKeyboardField extends StatefulWidget {
   final TextCapitalization textCapitalization;
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final int maxLines;
 
   const TouchKeyboardField({
@@ -372,6 +373,7 @@ class TouchKeyboardField extends StatefulWidget {
     this.textCapitalization = TextCapitalization.none,
     this.validator,
     this.onChanged,
+    this.onSubmitted,
     this.maxLines = 1,
   });
 
@@ -382,11 +384,59 @@ class TouchKeyboardField extends StatefulWidget {
 class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
   bool _showKeyboard = false;
   final _focusNode = FocusNode();
+  OverlayEntry? _overlayEntry;
 
   @override
   void dispose() {
+    _removeOverlay();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _toggleKeyboard() {
+    setState(() {
+      _showKeyboard = !_showKeyboard;
+      if (_showKeyboard) {
+        _showOverlay();
+      } else {
+        _removeOverlay();
+      }
+    });
+  }
+
+  void _hideKeyboard() {
+    if (!_showKeyboard) return;
+    setState(() => _showKeyboard = false);
+    _removeOverlay();
+    _focusNode.unfocus();
+  }
+
+  void _showOverlay() {
+    _removeOverlay();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: Material(
+          elevation: 8,
+          child: TouchKeyboard(
+            controller: widget.controller,
+            focusNode: _focusNode,
+            onDone: () {
+              _hideKeyboard();
+              widget.onSubmitted?.call(widget.controller.text);
+            },
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   @override
@@ -408,7 +458,7 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
                     : AppTheme.textSecondary,
                 size: 24,
               ),
-              onPressed: () => setState(() => _showKeyboard = !_showKeyboard),
+              onPressed: _toggleKeyboard,
               tooltip: _showKeyboard ? 'Hide keyboard' : 'Show keyboard',
             ),
           ),
@@ -416,37 +466,25 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
       ),
     );
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextFormField(
-          controller: widget.controller,
-          focusNode: _focusNode,
-          decoration: decoration,
-          textCapitalization: widget.textCapitalization,
-          validator: widget.validator,
-          onChanged: widget.onChanged,
-          maxLines: widget.maxLines,
-          readOnly: _showKeyboard,
-          showCursor: true,
-          onTap: () {
-            if (!_showKeyboard) return;
-            _focusNode.requestFocus();
-          },
-        ),
-        if (_showKeyboard)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: TouchKeyboard(
-              controller: widget.controller,
-              focusNode: _focusNode,
-              onDone: () {
-                setState(() => _showKeyboard = false);
-                _focusNode.unfocus();
-              },
-            ),
-          ),
-      ],
+    return TextFormField(
+      controller: widget.controller,
+      focusNode: _focusNode,
+      decoration: decoration,
+      textCapitalization: widget.textCapitalization,
+      validator: widget.validator,
+      onChanged: widget.onChanged,
+      onFieldSubmitted: widget.onSubmitted,
+      textInputAction: widget.onSubmitted != null
+          ? TextInputAction.search
+          : TextInputAction.done,
+      maxLines: widget.maxLines,
+      readOnly: _showKeyboard,
+      showCursor: true,
+      enableInteractiveSelection: true,
+      onTap: () {
+        if (!_showKeyboard) return;
+        _focusNode.requestFocus();
+      },
     );
   }
 }

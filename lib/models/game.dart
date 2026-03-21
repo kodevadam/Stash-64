@@ -13,6 +13,8 @@ class Game {
   final int? releaseYear;
   final String? notes;
   final bool isFavorite;
+  final double? pricechartingPrice;
+  final String? pricechartingUrl;
 
   // Joined field — populated from query, not stored directly
   final String? consoleName;
@@ -32,6 +34,8 @@ class Game {
     this.releaseYear,
     this.notes,
     this.isFavorite = false,
+    this.pricechartingPrice,
+    this.pricechartingUrl,
     this.consoleName,
     this.consoleAbbreviation,
   });
@@ -64,6 +68,8 @@ class Game {
       'release_year': releaseYear,
       'notes': notes,
       'is_favorite': isFavorite ? 1 : 0,
+      'pricecharting_price': pricechartingPrice,
+      'pricecharting_url': pricechartingUrl,
     };
   }
 
@@ -82,6 +88,8 @@ class Game {
       releaseYear: map['release_year'] as int?,
       notes: map['notes'] as String?,
       isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
+      pricechartingPrice: (map['pricecharting_price'] as num?)?.toDouble(),
+      pricechartingUrl: map['pricecharting_url'] as String?,
       consoleName: map['console_name'] as String?,
       consoleAbbreviation: map['console_abbreviation'] as String?,
     );
@@ -101,6 +109,8 @@ class Game {
     int? releaseYear,
     String? notes,
     bool? isFavorite,
+    double? pricechartingPrice,
+    String? pricechartingUrl,
     String? consoleName,
     String? consoleAbbreviation,
   }) {
@@ -118,6 +128,8 @@ class Game {
       releaseYear: releaseYear ?? this.releaseYear,
       notes: notes ?? this.notes,
       isFavorite: isFavorite ?? this.isFavorite,
+      pricechartingPrice: pricechartingPrice ?? this.pricechartingPrice,
+      pricechartingUrl: pricechartingUrl ?? this.pricechartingUrl,
       consoleName: consoleName ?? this.consoleName,
       consoleAbbreviation: consoleAbbreviation ?? this.consoleAbbreviation,
     );

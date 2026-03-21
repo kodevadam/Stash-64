@@ -18,7 +18,28 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('STASH 64'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videogame_asset, color: AppTheme.accentGold, size: 28),
+            const SizedBox(width: 10),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [AppTheme.accentGold, Color(0xFFFF9500), AppTheme.accentGold],
+              ).createShader(bounds),
+              child: const Text(
+                'STASH 64',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'monospace',
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 3,
+                ),
+              ),
+            ),
+          ],
+        ),
         toolbarHeight: 64,
         leading: Builder(
           builder: (context) => SizedBox(

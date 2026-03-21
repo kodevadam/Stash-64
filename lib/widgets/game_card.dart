@@ -66,28 +66,29 @@ class GameCard extends StatelessWidget {
                       ],
                     ),
                     const Spacer(),
-                    // Location
+                    // Location (only shown if set) + favorite star
                     Row(
                       children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 14,
-                          color: AppTheme.textSecondary.withOpacity(0.7),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            game.fullLocation.isNotEmpty
-                                ? game.fullLocation
-                                : 'No location',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  AppTheme.textSecondary.withOpacity(0.7),
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        if (game.fullLocation.isNotEmpty) ...[
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 14,
+                            color: AppTheme.textSecondary.withOpacity(0.7),
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              game.fullLocation,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    AppTheme.textSecondary.withOpacity(0.7),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ] else
+                          const Spacer(),
                         if (game.isFavorite)
                           const Icon(
                             Icons.star,

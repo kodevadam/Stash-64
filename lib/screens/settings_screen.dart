@@ -421,7 +421,7 @@ class _RawgApiKeyCardState extends State<_RawgApiKeyCard> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.settings.rawgApiKey);
+    _controller = TextEditingController(text: widget.settings.userRawgApiKey);
   }
 
   @override
@@ -432,6 +432,7 @@ class _RawgApiKeyCardState extends State<_RawgApiKeyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final hasBuiltIn = widget.settings.hasBuiltInRawgKey;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -446,14 +447,35 @@ class _RawgApiKeyCardState extends State<_RawgApiKeyCard> {
                   child: Text('RAWG API Key',
                       style: TextStyle(fontSize: 16)),
                 ),
+                if (hasBuiltIn)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentCyan.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Key provided',
+                      style: TextStyle(
+                        color: AppTheme.accentCyan,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Optional. Get a free key at rawg.io/apidocs for '
-              'reliable game search. Works without one but may be '
-              'rate-limited.',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            Text(
+              hasBuiltIn
+                  ? 'A built-in API key is already configured. You can '
+                    'optionally enter your own key to override it.'
+                  : 'Optional. Get a free key at rawg.io/apidocs for '
+                    'reliable game search. Works without one but may be '
+                    'rate-limited.',
+              style: const TextStyle(
+                  color: AppTheme.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(

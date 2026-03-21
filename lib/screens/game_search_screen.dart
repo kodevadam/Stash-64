@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../data/database_helper.dart';
 import '../data/game_catalog.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
@@ -25,16 +27,20 @@ class GameSearchScreen extends StatefulWidget {
 
 class _GameSearchScreenState extends State<GameSearchScreen> {
   final _searchController = TextEditingController();
+  final _consoleSearchController = TextEditingController();
   List<CatalogGame> _results = [];
   bool _isSearching = false;
   String? _error;
+  final Set<String> _addedTitles = {};
 
   // Step 1: console selection
   GameConsole? _selectedConsole;
+  String _consoleFilter = '';
 
   @override
   void dispose() {
     _searchController.dispose();
+    _consoleSearchController.dispose();
     super.dispose();
   }
 
@@ -114,20 +120,29 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
   /// Step 1: Console selection grid
   Widget _buildConsoleSelection(GameProvider provider) {
-    // Group consoles by manufacturer for easier browsing
-    final consoles = provider.consoles;
+    final allConsoles = provider.consoles;
+    final consoles = _consoleFilter.isEmpty
+        ? allConsoles
+        : allConsoles.where((c) {
+            final q = _consoleFilter.toLowerCase();
+            return c.name.toLowerCase().contains(q) ||
+                c.abbreviation.toLowerCase().contains(q);
+          }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-          child: Text(
-            'Select a console:',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  color: AppTheme.textSecondary,
-                ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TouchKeyboardField(
+            controller: _consoleSearchController,
+            decoration: const InputDecoration(
+              hintText: 'Filter consoles...',
+              prefixIcon: Icon(Icons.search),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            onChanged: (v) => setState(() => _consoleFilter = v),
           ),
         ),
         Expanded(
@@ -218,6 +233,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                           horizontal: 16, vertical: 14),
                     ),
                     textCapitalization: TextCapitalization.words,
+                    onSubmitted: (_) => _search(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -355,13 +371,14 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   }
 
   Widget _buildResultCard(CatalogGame catalogGame, GameProvider provider) {
+    final alreadyAdded = _addedTitles.contains(catalogGame.title.toLowerCase());
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: AppTheme.cardDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showAddDialog(catalogGame, provider),
+        onTap: alreadyAdded ? null : () => _showAddDialog(catalogGame, provider),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -418,8 +435,11 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.add_circle_outline,
-                  color: AppTheme.accentGold, size: 36),
+              Icon(
+                alreadyAdded ? Icons.check_circle : Icons.add_circle_outline,
+                color: alreadyAdded ? AppTheme.accentCyan : AppTheme.accentGold,
+                size: 36,
+              ),
             ],
           ),
         ),
@@ -493,6 +513,20 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       }
     }
 
+    // Auto-fetch PriceCharting data
+    double? pcPrice = catalogGame.pricechartingPrice;
+    String? pcUrl = catalogGame.pricechartingUrl;
+    if (pcPrice == null) {
+      try {
+        final pcResult = await GameCatalog.fetchPriceCharting(
+          catalogGame.title,
+          _selectedConsole?.abbreviation,
+        );
+        pcPrice = pcResult.price;
+        pcUrl = pcResult.url;
+      } catch (_) {}
+    }
+
     final game = Game(
       title: catalogGame.title,
       consoleId: _selectedConsole!.id!,
@@ -503,9 +537,21 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       region: result.region,
       releaseYear: catalogGame.releaseYear,
       storageLocation: '',
+      pricechartingPrice: pcPrice,
+      pricechartingUrl: pcUrl,
     );
 
-    await provider.addGame(game);
+    final gameId = await provider.addGame(game);
+
+    // Mark as added so the icon updates
+    setState(() {
+      _addedTitles.add(catalogGame.title.toLowerCase());
+    });
+
+    // Auto-fetch RAWG screenshots in background
+    if (catalogGame.rawgId != null) {
+      _fetchRawgScreenshots(catalogGame.rawgId!, gameId);
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -514,6 +560,56 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
           backgroundColor: AppTheme.accentGold.withOpacity(0.9),
         ),
       );
+    }
+  }
+
+  /// Fetch screenshots from RAWG API and save them to the game's screenshot gallery.
+  Future<void> _fetchRawgScreenshots(int rawgId, int gameId) async {
+    if (gameId <= 0) return;
+    try {
+      final apiKey = context.read<SettingsProvider>().rawgApiKey;
+      final uri = Uri.https('api.rawg.io', '/api/games/$rawgId/screenshots', {
+        'key': apiKey,
+      });
+      final response = await http.get(uri).timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) return;
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final results = data['results'] as List<dynamic>? ?? [];
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final ssDir = Directory(p.join(appDir.path, 'screenshots', '$gameId'));
+      if (!await ssDir.exists()) {
+        await ssDir.create(recursive: true);
+      }
+
+      // Download up to 5 screenshots
+      int count = 0;
+      for (final item in results) {
+        if (count >= 5) break;
+        final imageUrl = item['image'] as String?;
+        if (imageUrl == null) continue;
+        try {
+          final imgResponse = await http.get(Uri.parse(imageUrl)).timeout(
+            const Duration(seconds: 15),
+          );
+          if (imgResponse.statusCode == 200) {
+            String ext = '.jpg';
+            final ct = imgResponse.headers['content-type'];
+            if (ct != null) {
+              if (ct.contains('png')) ext = '.png';
+              if (ct.contains('webp')) ext = '.webp';
+            }
+            final destPath = p.join(ssDir.path,
+                '${DateTime.now().millisecondsSinceEpoch}_$count$ext');
+            await File(destPath).writeAsBytes(imgResponse.bodyBytes);
+            await DatabaseHelper.instance.insertScreenshot(gameId, destPath);
+            count++;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {
+      // Non-fatal — screenshots are a bonus
     }
   }
 }

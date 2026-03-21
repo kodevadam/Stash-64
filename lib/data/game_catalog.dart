@@ -13,6 +13,9 @@ class CatalogGame {
   final String? description;
   final List<String> platforms;
   final List<String> regions;
+  final int? rawgId;
+  final double? pricechartingPrice;
+  final String? pricechartingUrl;
 
   const CatalogGame({
     required this.title,
@@ -24,6 +27,9 @@ class CatalogGame {
     this.description,
     this.platforms = const [],
     this.regions = const [],
+    this.rawgId,
+    this.pricechartingPrice,
+    this.pricechartingUrl,
   });
 }
 
@@ -217,6 +223,10 @@ class GameCatalog {
         const Duration(seconds: 12),
       );
 
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        // Invalid or missing API key — skip RAWG silently, fall back to LibRetro
+        return results;
+      }
       if (response.statusCode != 200) {
         throw Exception('RAWG API returned ${response.statusCode}');
       }
@@ -260,6 +270,15 @@ class GameCatalog {
             if (lrUrl != null) coverUrl = lrUrl;
           }
 
+          // Skip games that don't match the selected console platform
+          if (consoleAbbr != null && platforms.isNotEmpty) {
+            // Also accept equivalent abbreviations (GEN/MD, NES/FC, etc.)
+            final equivalents = _equivalentAbbreviations[consoleAbbr] ?? {consoleAbbr};
+            if (!platforms.any((p) => equivalents.contains(p))) {
+              continue;
+            }
+          }
+
           results.add(CatalogGame(
             title: game['name'] as String? ?? 'Unknown',
             genre: genres.isNotEmpty ? _mapGenre(genres.first) : null,
@@ -268,6 +287,7 @@ class GameCatalog {
             description: game['description_raw'] as String?,
             platforms: platforms,
             regions: _inferRegions(platforms),
+            rawgId: game['id'] as int?,
           ));
         }
       }
@@ -357,6 +377,94 @@ class GameCatalog {
       regions.addAll(['NTSC-U', 'NTSC-J', 'PAL']);
     }
     return regions.toList();
+  }
+
+  /// Groups of console abbreviations that should be treated as the same platform.
+  static const _equivalentAbbreviations = <String, Set<String>>{
+    'NES': {'NES', 'FC'},
+    'FC': {'NES', 'FC'},
+    'SNES': {'SNES', 'SFC'},
+    'SFC': {'SNES', 'SFC'},
+    'GEN': {'GEN', 'MD'},
+    'MD': {'GEN', 'MD'},
+    'TG16': {'TG16', 'PCE'},
+    'PCE': {'TG16', 'PCE'},
+    'AES': {'AES', 'MVS'},
+    'MVS': {'AES', 'MVS'},
+    'SCD': {'SCD'},
+    'WS': {'WS', 'WSC'},
+    'WSC': {'WS', 'WSC'},
+  };
+
+  /// PriceCharting console name mapping for URL construction.
+  static const _pricechartingConsoleSlugs = {
+    'NES': 'nes', 'FC': 'famicom', 'SNES': 'super-nintendo',
+    'SFC': 'super-famicom', 'N64': 'nintendo-64', 'GCN': 'gamecube',
+    'Wii': 'wii', 'GB': 'gameboy', 'GBC': 'gameboy-color',
+    'GBA': 'gameboy-advance', 'NDS': 'nintendo-ds', 'VB': 'virtual-boy',
+    'SMS': 'sega-master-system', 'GEN': 'sega-genesis',
+    'MD': 'sega-mega-drive', 'SCD': 'sega-cd', '32X': 'sega-32x',
+    'SAT': 'sega-saturn', 'DC': 'dreamcast', 'GG': 'game-gear',
+    'PS1': 'playstation', 'PS2': 'playstation-2', 'PSP': 'psp',
+    '2600': 'atari-2600', '5200': 'atari-5200', '7800': 'atari-7800',
+    'JAG': 'atari-jaguar', 'LYNX': 'atari-lynx',
+    'TG16': 'turbografx-16', 'PCE': 'pc-engine',
+    'TGCD': 'turbografx-cd', 'AES': 'neo-geo', 'MVS': 'neo-geo',
+    'NGPC': 'neo-geo-pocket-color', 'CV': 'colecovision',
+    'INTV': 'intellivision', '3DO': '3do', 'XBOX': 'xbox',
+  };
+
+  /// Fetch price data from PriceCharting for a game.
+  static Future<({double? price, String? url})> fetchPriceCharting(
+    String title,
+    String? consoleAbbr,
+  ) async {
+    try {
+      final consolePart = consoleAbbr != null
+          ? _pricechartingConsoleSlugs[consoleAbbr]
+          : null;
+      // Use PriceCharting's search API (public, no key needed)
+      final query = consolePart != null
+          ? '$title $consolePart'
+          : title;
+      final uri = Uri.https('www.pricecharting.com', '/api/products', {
+        'q': query,
+        't': 'products',
+      });
+
+      final response = await http.get(uri, headers: {
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List && data.isNotEmpty) {
+          final product = data[0] as Map<String, dynamic>;
+          final loosePriceCents = product['loose-price'] as int?;
+          final productId = product['id']?.toString();
+          final productTitle = product['product-name'] as String?;
+          final pcConsole = product['console-name'] as String?;
+
+          double? price;
+          if (loosePriceCents != null) {
+            price = loosePriceCents / 100.0;
+          }
+
+          String? url;
+          if (productId != null) {
+            final slug = (productTitle ?? title)
+                .toLowerCase()
+                .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+                .replaceAll(RegExp(r'^-|-$'), '');
+            url = 'https://www.pricecharting.com/game/${pcConsole?.toLowerCase().replaceAll(' ', '-') ?? consolePart ?? 'all'}/$slug';
+          }
+          return (price: price, url: url);
+        }
+      }
+    } catch (_) {
+      // PriceCharting unavailable — non-fatal
+    }
+    return (price: null, url: null);
   }
 
   /// Map RAWG genre names to our simpler genre list.
