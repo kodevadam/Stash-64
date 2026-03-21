@@ -31,20 +31,26 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         prefixIcon: const Icon(Icons.search, size: 26),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        suffixIcon: _controller.text.isNotEmpty
-            ? SizedBox(
-                width: 48,
-                height: 48,
-                child: IconButton(
-                  icon: const Icon(Icons.clear, size: 24),
-                  onPressed: () {
+        suffixIcon: SizedBox(
+          width: 48,
+          height: 48,
+          child: IconButton(
+            icon: Icon(
+              Icons.clear,
+              size: 24,
+              color: _controller.text.isNotEmpty
+                  ? null
+                  : AppTheme.textSecondary.withOpacity(0.3),
+            ),
+            onPressed: _controller.text.isNotEmpty
+                ? () {
                     _controller.clear();
                     context.read<GameProvider>().setSearchQuery('');
                     setState(() {});
-                  },
-                ),
-              )
-            : null,
+                  }
+                : null,
+          ),
+        ),
       ),
       onChanged: (value) {
         context.read<GameProvider>().setSearchQuery(value);
