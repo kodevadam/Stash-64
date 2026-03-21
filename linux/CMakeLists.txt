@@ -87,10 +87,13 @@ include(flutter/generated_plugins.cmake)
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-# Install Flutter engine and ICU data.
+# Install Flutter engine, ICU data, and assets.
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
   COMPONENT Runtime)
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(DIRECTORY "${PROJECT_BUILD_DIR}/flutter_assets"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/data"
   COMPONENT Runtime)
 
 # Install plugin shared libraries to lib/ so the binary can find them at runtime.
