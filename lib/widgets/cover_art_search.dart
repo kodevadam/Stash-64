@@ -230,7 +230,7 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
         if (mounted) {
           setState(() {
             _isDownloading = false;
-            _error = 'Failed to download image (${response.statusCode})';
+            _error = 'Failed to download image';
           });
         }
       }

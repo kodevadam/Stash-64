@@ -2,6 +2,7 @@
 .dart_tool/
 .packages
 build/
+.appimage-tools/
 *.iml
 .metadata
 .flutter-plugins
