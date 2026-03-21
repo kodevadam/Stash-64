@@ -50,11 +50,6 @@ target_include_directories(flutter INTERFACE
   "${EPHEMERAL_DIR}"
 )
 target_link_libraries(flutter INTERFACE "${FLUTTER_LIBRARY}")
-target_link_libraries(flutter INTERFACE
-  PkgConfig::GTK
-  PkgConfig::GLIB
-  PkgConfig::GIO
-)
 add_dependencies(flutter flutter_assemble)
 
 # === Flutter tool backend ===
