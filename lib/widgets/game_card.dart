@@ -53,7 +53,7 @@ class GameCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    // Console + region badges
+                    // Console + region badges + player count
                     Wrap(
                       spacing: 4,
                       runSpacing: 4,
@@ -63,6 +63,7 @@ class GameCard extends StatelessWidget {
                               AppTheme.accentGold),
                         if (game.region.isNotEmpty)
                           _buildBadge(game.region, AppTheme.accentCyan),
+                        _buildPlayerBadge(),
                       ],
                     ),
                     const Spacer(),
@@ -122,6 +123,43 @@ class GameCard extends StatelessWidget {
           color: color,
           fontFamily: 'monospace',
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerBadge() {
+    final label = game.maxPlayers > 1
+        ? '${game.maxPlayers}P'
+        : '1P';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.textSecondary.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.sports_esports,
+            size: 12,
+            color: game.maxPlayers > 1
+                ? AppTheme.accentCyan
+                : AppTheme.textSecondary,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: game.maxPlayers > 1
+                  ? AppTheme.accentCyan
+                  : AppTheme.textSecondary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }

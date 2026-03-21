@@ -175,6 +175,73 @@ class GameCatalog {
         '${Uri.encodeComponent(safeName)}.png';
   }
 
+  /// Fetch player count from RAWG game details endpoint.
+  /// Returns (minPlayers, maxPlayers) parsed from the game's tags.
+  static Future<({int minPlayers, int maxPlayers})> fetchPlayerCount(
+    int rawgId, {
+    String apiKey = '',
+  }) async {
+    int minPlayers = 1;
+    int maxPlayers = 1;
+
+    try {
+      final uri = Uri.https('api.rawg.io', '/api/games/$rawgId', {
+        'key': apiKey,
+      });
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 12),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final tags = data['tags'] as List<dynamic>? ?? [];
+
+        bool hasMultiplayer = false;
+        int maxFromTags = 1;
+
+        for (final tag in tags) {
+          final name = (tag['name'] as String? ?? '').toLowerCase();
+          final slug = (tag['slug'] as String? ?? '').toLowerCase();
+
+          // Check for specific player count tags
+          final countMatch = RegExp(r'(\d+)\s*player').firstMatch(name);
+          if (countMatch != null) {
+            final count = int.tryParse(countMatch.group(1)!) ?? 1;
+            if (count > maxFromTags) maxFromTags = count;
+          }
+
+          if (slug == 'multiplayer' ||
+              name.contains('multiplayer') ||
+              name.contains('co-op') ||
+              slug == 'co-op' ||
+              slug == 'cooperative' ||
+              slug == 'local-co-op' ||
+              slug == 'online-co-op' ||
+              slug == 'split-screen') {
+            hasMultiplayer = true;
+          }
+
+          if (slug == 'local-multiplayer' ||
+              name.contains('local multiplayer') ||
+              name.contains('couch co-op') ||
+              name.contains('local co-op')) {
+            hasMultiplayer = true;
+          }
+        }
+
+        if (maxFromTags > 1) {
+          maxPlayers = maxFromTags;
+        } else if (hasMultiplayer) {
+          maxPlayers = 2; // default multiplayer assumption
+        }
+      }
+    } catch (_) {
+      // Non-fatal — keep defaults
+    }
+
+    return (minPlayers: minPlayers, maxPlayers: maxPlayers);
+  }
+
   /// Search for games using the RAWG API (free tier, no key required for
   /// basic queries with rate limiting).
   static Future<List<CatalogGame>> search(

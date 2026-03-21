@@ -513,6 +513,21 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       }
     }
 
+    // Auto-fetch player count from RAWG game details
+    int minPlayers = catalogGame.minPlayers ?? 1;
+    int maxPlayers = catalogGame.maxPlayers ?? 1;
+    if (catalogGame.rawgId != null) {
+      try {
+        final apiKey = context.read<SettingsProvider>().rawgApiKey;
+        final playerData = await GameCatalog.fetchPlayerCount(
+          catalogGame.rawgId!,
+          apiKey: apiKey,
+        );
+        minPlayers = playerData.minPlayers;
+        maxPlayers = playerData.maxPlayers;
+      } catch (_) {}
+    }
+
     // Auto-fetch PriceCharting data
     double? pcPrice = catalogGame.pricechartingPrice;
     String? pcUrl = catalogGame.pricechartingUrl;
@@ -531,8 +546,8 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       title: catalogGame.title,
       consoleId: _selectedConsole!.id!,
       genre: catalogGame.genre ?? 'Action',
-      minPlayers: catalogGame.minPlayers ?? 1,
-      maxPlayers: catalogGame.maxPlayers ?? 1,
+      minPlayers: minPlayers,
+      maxPlayers: maxPlayers,
       coverArtPath: coverPath,
       region: result.region,
       releaseYear: catalogGame.releaseYear,

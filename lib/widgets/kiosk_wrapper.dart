@@ -185,21 +185,39 @@ class _AttractModeOverlay extends StatelessWidget {
                         child: child,
                       );
                     },
-                    child: Text(
-                      'STASH 64',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 56,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.accentGold,
-                        letterSpacing: 8,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 30,
-                            color: AppTheme.accentGold.withOpacity(0.5),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.videogame_asset,
+                            color: AppTheme.accentGold, size: 52),
+                        const SizedBox(width: 16),
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [
+                              AppTheme.accentGold,
+                              Color(0xFFFF9500),
+                              AppTheme.accentGold,
+                            ],
+                          ).createShader(bounds),
+                          child: Text(
+                            'STASH 64',
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 56,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 8,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 30,
+                                  color:
+                                      AppTheme.accentGold.withOpacity(0.5),
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
