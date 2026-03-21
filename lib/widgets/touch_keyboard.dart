@@ -389,15 +389,21 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
   final _focusNode = FocusNode();
   OverlayEntry? _overlayEntry;
   bool _lastInteractionWasTouch = false;
+  String _lastText = '';
 
   @override
   void initState() {
     super.initState();
+    _lastText = widget.controller.text;
     widget.controller.addListener(_onControllerChanged);
   }
 
   void _onControllerChanged() {
-    widget.onChanged?.call(widget.controller.text);
+    final currentText = widget.controller.text;
+    if (currentText != _lastText) {
+      _lastText = currentText;
+      widget.onChanged?.call(currentText);
+    }
   }
 
   @override
