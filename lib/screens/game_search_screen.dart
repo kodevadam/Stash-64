@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -390,10 +391,23 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   width: 72,
                   height: 96,
                   child: catalogGame.coverUrl != null
-                      ? Image.network(
-                          catalogGame.coverUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: catalogGame.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          placeholder: (_, __) => Container(
+                            color: AppTheme.surfaceDark,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.accentGold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
                             color: AppTheme.surfaceDark,
                             child: const Icon(Icons.videogame_asset,
                                 color: AppTheme.textSecondary, size: 32),

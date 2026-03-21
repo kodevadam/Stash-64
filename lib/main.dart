@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/database_helper.dart';
+import 'data/image_cache_helper.dart';
 import 'providers/game_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/mobile/mobile_home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/kiosk_wrapper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   DatabaseHelper.initializeFfi();
+
+  // Clean stale image cache on startup
+  ImageCacheHelper.clearOldCache();
 
   runApp(const Stash64App());
 }
@@ -45,12 +50,26 @@ class Stash64App extends StatelessWidget {
                 ),
               );
             },
-            home: const KioskWrapper(
-              child: HomeScreen(),
-            ),
+            home: const _ResponsiveHome(),
           );
         },
       ),
     );
+  }
+}
+
+/// Picks between mobile UI and kiosk/desktop UI based on screen width.
+/// Screens under 600dp get the mobile layout; wider screens get
+/// the kiosk grid layout with attract mode.
+class _ResponsiveHome extends StatelessWidget {
+  const _ResponsiveHome();
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) {
+      return const MobileHomeScreen();
+    }
+    return const KioskWrapper(child: HomeScreen());
   }
 }
