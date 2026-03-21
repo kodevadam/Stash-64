@@ -104,8 +104,8 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/flutter_assets"
   DESTINATION "${CMAKE_INSTALL_PREFIX}/data"
   COMPONENT Runtime)
 
-# Install AOT library for release builds.
+# Install AOT library for release builds only.
 if(NOT ("${AOT_LIBRARY}" STREQUAL ""))
   install(FILES "${AOT_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
-    COMPONENT Runtime)
+    COMPONENT Runtime OPTIONAL)
 endif()
