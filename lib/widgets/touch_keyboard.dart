@@ -15,12 +15,14 @@ class TouchKeyboard extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
   final VoidCallback? onDone;
+  final ValueChanged<String>? onTextChanged;
 
   const TouchKeyboard({
     super.key,
     required this.controller,
     this.focusNode,
     this.onDone,
+    this.onTextChanged,
   });
 
   @override
@@ -68,6 +70,7 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
 
     widget.controller.text = newText;
     widget.controller.selection = TextSelection.collapsed(offset: newCursorPos);
+    widget.onTextChanged?.call(newText);
 
     // Auto-unshift after typing a letter (like a phone keyboard)
     if (_shifted && !_showSymbols) {
@@ -84,6 +87,7 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
       widget.controller.text = newText;
       widget.controller.selection =
           TextSelection.collapsed(offset: selection.start);
+      widget.onTextChanged?.call(newText);
     } else {
       final cursorPos = selection.isValid ? selection.baseOffset : text.length;
       if (cursorPos > 0) {
@@ -92,6 +96,7 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
         widget.controller.text = newText;
         widget.controller.selection =
             TextSelection.collapsed(offset: cursorPos - 1);
+        widget.onTextChanged?.call(newText);
       }
     }
   }
@@ -449,6 +454,9 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
           child: TouchKeyboard(
             controller: widget.controller,
             focusNode: _focusNode,
+            onTextChanged: (text) {
+              widget.onChanged?.call(text);
+            },
             onDone: () {
               _hideKeyboard();
               widget.onSubmitted?.call(widget.controller.text);
