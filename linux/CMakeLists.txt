@@ -98,3 +98,14 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+# Install Flutter assets (kernel_blob.bin etc.) — required for the engine to start.
+install(DIRECTORY "${PROJECT_BUILD_DIR}/flutter_assets"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/data"
+  COMPONENT Runtime)
+
+# Install AOT library for release builds.
+if(NOT ("${AOT_LIBRARY}" STREQUAL ""))
+  install(FILES "${AOT_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+    COMPONENT Runtime)
+endif()
