@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 
 /// A full-width on-screen touch keyboard designed for kiosk/touchscreen use.
@@ -111,9 +114,16 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
   Widget build(BuildContext context) {
     final rows = _showSymbols ? _symbolRows : _letterRows;
     final screenWidth = MediaQuery.of(context).size.width;
-    // Calculate key size based on screen width (10 keys per row max)
-    final keyWidth = (screenWidth - 32) / 10; // 16px padding each side
-    final keyHeight = keyWidth * 1.1; // Slightly taller than wide
+    final screenHeight = MediaQuery.of(context).size.height;
+    final uiScale = context.watch<SettingsProvider>().uiScale;
+    // Cap key size so keyboard never exceeds ~40% of screen height
+    // and keys stay a reasonable touch-target size.
+    // Scale the max bounds with UI scale so keys grow/shrink with the setting.
+    final maxW = (52.0 * uiScale).clamp(32.0, 64.0);
+    final maxH = ((screenHeight * 0.40 - 52) / 4.0).clamp(32.0, (46.0 * uiScale).clamp(32.0, 56.0));
+    final rawKeyWidth = (screenWidth - 32 - 10 * 4) / 10; // account for padding between keys
+    final keyWidth = rawKeyWidth.clamp(32.0, maxW);
+    final keyHeight = keyWidth.clamp(32.0, maxH);
 
     return Container(
       decoration: BoxDecoration(
@@ -122,16 +132,16 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
           top: BorderSide(color: AppTheme.textSecondary.withOpacity(0.2)),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildRow(rows[0], keyWidth, keyHeight),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _buildRow(rows[1], keyWidth, keyHeight),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _buildRow3(rows[2], keyWidth, keyHeight),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _buildBottomRow(keyWidth, keyHeight),
         ],
       ),
@@ -279,7 +289,7 @@ class _KeyButtonState extends State<_KeyButton> {
     final bgColor = widget.color ?? AppTheme.cardDark;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: GestureDetector(
         onTapDown: (_) {
           setState(() => _pressed = true);
@@ -325,7 +335,7 @@ class _KeyButtonState extends State<_KeyButton> {
             child: widget.icon != null && (widget.label == null || widget.label!.isEmpty)
                 ? Icon(
                     widget.icon,
-                    size: widget.height * 0.4,
+                    size: (widget.height * 0.4).clamp(14.0, 20.0),
                     color: widget.iconColor ??
                         widget.textColor ??
                         AppTheme.textPrimary,
@@ -333,7 +343,7 @@ class _KeyButtonState extends State<_KeyButton> {
                 : Text(
                     widget.label ?? '',
                     style: TextStyle(
-                      fontSize: widget.fontSize ?? widget.height * 0.38,
+                      fontSize: widget.fontSize ?? (widget.height * 0.38).clamp(12.0, 18.0),
                       fontWeight: widget.fontWeight ?? FontWeight.w500,
                       color: widget.textColor ?? AppTheme.textPrimary,
                     ),
@@ -426,7 +436,7 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
         ),
         if (_showKeyboard)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 4),
             child: TouchKeyboard(
               controller: widget.controller,
               focusNode: _focusNode,

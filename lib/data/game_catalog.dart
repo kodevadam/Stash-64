@@ -196,6 +196,7 @@ class GameCatalog {
     final results = <CatalogGame>[];
 
     final params = <String, String>{
+      'key': '', // RAWG requires key param; empty string for rate-limited access
       'search': query,
       'page_size': '20',
       'search_precise': 'true',
@@ -208,7 +209,6 @@ class GameCatalog {
       }
     }
 
-    // RAWG allows keyless access with rate limiting
     final uri = Uri.https('api.rawg.io', '/api/games', params);
 
     try {

@@ -193,41 +193,45 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   Widget _buildGameSearch(GameProvider provider) {
     return Column(
       children: [
-        // Search input
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TouchKeyboardField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search ${_selectedConsole!.abbreviation} games...',
-                    prefixIcon: const Icon(Icons.search),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 56,
-                width: 56,
-                child: ElevatedButton(
-                  onPressed: _search,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentGold,
-                    foregroundColor: AppTheme.primaryDark,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+        // Search input + keyboard - flexible so keyboard doesn't overflow
+        Flexible(
+          flex: 0,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TouchKeyboardField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search ${_selectedConsole!.abbreviation} games...',
+                      prefixIcon: const Icon(Icons.search),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
                     ),
+                    textCapitalization: TextCapitalization.words,
                   ),
-                  child: const Icon(Icons.search, size: 28),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 50,
+                  width: 50,
+                  child: ElevatedButton(
+                    onPressed: _search,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentGold,
+                      foregroundColor: AppTheme.primaryDark,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Icon(Icons.search, size: 24),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -238,15 +242,15 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
         // Custom add button at bottom
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: SizedBox(
-            height: 56,
+            height: 48,
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => _addCustom(provider),
-              icon: const Icon(Icons.edit, size: 24),
+              icon: const Icon(Icons.edit, size: 20),
               label: const Text('Add Custom Game',
-                  style: TextStyle(fontSize: 16)),
+                  style: TextStyle(fontSize: 15)),
               style: OutlinedButton.styleFrom(
                 side:
                     BorderSide(color: AppTheme.accentGold.withOpacity(0.5)),
