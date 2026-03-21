@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -119,8 +120,10 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
     // Cap key size so keyboard never exceeds ~40% of screen height
     // and keys stay a reasonable touch-target size.
     // Scale the max bounds with UI scale so keys grow/shrink with the setting.
-    final maxW = (52.0 * uiScale).clamp(32.0, 64.0);
-    final maxH = ((screenHeight * 0.40 - 52) / 4.0).clamp(32.0, (46.0 * uiScale).clamp(32.0, 56.0));
+    // On wider screens (>1200px), allow keys to grow larger for easier touch targets
+    final isWideScreen = screenWidth > 1200;
+    final maxW = (52.0 * uiScale).clamp(32.0, isWideScreen ? 80.0 : 64.0);
+    final maxH = ((screenHeight * 0.40 - 52) / 4.0).clamp(32.0, (46.0 * uiScale).clamp(32.0, isWideScreen ? 64.0 : 56.0));
     final rawKeyWidth = (screenWidth - 32 - 10 * 4) / 10; // account for padding between keys
     final keyWidth = rawKeyWidth.clamp(32.0, maxW);
     final keyHeight = keyWidth.clamp(32.0, maxH);
@@ -385,6 +388,7 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
   bool _showKeyboard = false;
   final _focusNode = FocusNode();
   OverlayEntry? _overlayEntry;
+  bool _lastInteractionWasTouch = false;
 
   @override
   void dispose() {
@@ -466,25 +470,33 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
       ),
     );
 
-    return TextFormField(
-      controller: widget.controller,
-      focusNode: _focusNode,
-      decoration: decoration,
-      textCapitalization: widget.textCapitalization,
-      validator: widget.validator,
-      onChanged: widget.onChanged,
-      onFieldSubmitted: widget.onSubmitted,
-      textInputAction: widget.onSubmitted != null
-          ? TextInputAction.search
-          : TextInputAction.done,
-      maxLines: widget.maxLines,
-      readOnly: _showKeyboard,
-      showCursor: true,
-      enableInteractiveSelection: true,
-      onTap: () {
-        if (!_showKeyboard) return;
-        _focusNode.requestFocus();
+    return Listener(
+      onPointerDown: (event) {
+        _lastInteractionWasTouch = event.kind == PointerDeviceKind.touch;
       },
+      child: TextFormField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        decoration: decoration,
+        textCapitalization: widget.textCapitalization,
+        validator: widget.validator,
+        onChanged: widget.onChanged,
+        onFieldSubmitted: widget.onSubmitted,
+        textInputAction: widget.onSubmitted != null
+            ? TextInputAction.search
+            : TextInputAction.done,
+        maxLines: widget.maxLines,
+        readOnly: _showKeyboard,
+        showCursor: true,
+        enableInteractiveSelection: true,
+        onTap: () {
+          if (_lastInteractionWasTouch && !_showKeyboard) {
+            _toggleKeyboard();
+          } else if (_showKeyboard) {
+            _focusNode.requestFocus();
+          }
+        },
+      ),
     );
   }
 }
