@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../data/data_repository.dart';
@@ -20,6 +22,7 @@ class GameProvider extends ChangeNotifier {
   bool _isLoading = true;
   int _totalGameCount = 0;
   int _searchGeneration = 0;
+  Timer? _searchDebounce;
 
   List<Game> get games => _games;
   List<GameConsole> get consoles => _consoles;
@@ -65,14 +68,16 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setSearchQuery(String query) async {
+  void setSearchQuery(String query) {
     _filterState = _filterState.copyWith(searchQuery: query);
-    final generation = ++_searchGeneration;
-    final results = await _repo.getGames(_filterState);
-    // Only apply results if no newer search has been started
-    if (generation != _searchGeneration) return;
-    _games = results;
-    notifyListeners();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 150), () async {
+      final generation = ++_searchGeneration;
+      final results = await _repo.getGames(_filterState);
+      if (generation != _searchGeneration) return;
+      _games = results;
+      notifyListeners();
+    });
   }
 
   // --- Game CRUD ---
