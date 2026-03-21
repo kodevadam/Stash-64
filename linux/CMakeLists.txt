@@ -86,3 +86,16 @@ include(flutter/generated_plugins.cmake)
 # Only the install rules apply to bundled applications.
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
+
+# Install Flutter engine and ICU data.
+install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+  COMPONENT Runtime)
+install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+
+# Install plugin shared libraries to lib/ so the binary can find them at runtime.
+foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
+  install(FILES "${bundled_library}"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+    COMPONENT Runtime)
+endforeach(bundled_library)
