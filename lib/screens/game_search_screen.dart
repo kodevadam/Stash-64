@@ -135,11 +135,30 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TouchKeyboardField(
             controller: _consoleSearchController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Filter consoles...',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: SizedBox(
+                width: 48,
+                height: 48,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    size: 24,
+                    color: _consoleSearchController.text.isNotEmpty
+                        ? null
+                        : AppTheme.textSecondary.withOpacity(0.3),
+                  ),
+                  onPressed: _consoleSearchController.text.isNotEmpty
+                      ? () {
+                          _consoleSearchController.clear();
+                          setState(() => _consoleFilter = '');
+                        }
+                      : null,
+                ),
+              ),
               contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
             onChanged: (v) => setState(() => _consoleFilter = v),
           ),
@@ -228,10 +247,30 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                     decoration: InputDecoration(
                       hintText: 'Search ${_selectedConsole!.abbreviation} games...',
                       prefixIcon: const Icon(Icons.search),
+                      suffixIcon: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            size: 24,
+                            color: _searchController.text.isNotEmpty
+                                ? null
+                                : AppTheme.textSecondary.withOpacity(0.3),
+                          ),
+                          onPressed: _searchController.text.isNotEmpty
+                              ? () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                }
+                              : null,
+                        ),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
                     ),
                     textCapitalization: TextCapitalization.words,
+                    onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _search(),
                   ),
                 ),
