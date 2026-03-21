@@ -26,7 +26,7 @@ class AppTheme {
         onSurface: textPrimary,
       ),
       scaffoldBackgroundColor: primaryDark,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardDark,
         elevation: 2,
         shape: RoundedRectangleBorder(
