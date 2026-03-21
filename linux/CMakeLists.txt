@@ -68,6 +68,7 @@ apply_standard_settings(${BINARY_NAME})
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
+target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
