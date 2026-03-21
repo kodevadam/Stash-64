@@ -19,6 +19,7 @@ class GameProvider extends ChangeNotifier {
   FilterState _filterState = const FilterState();
   bool _isLoading = true;
   int _totalGameCount = 0;
+  int _searchGeneration = 0;
 
   List<Game> get games => _games;
   List<GameConsole> get consoles => _consoles;
@@ -66,7 +67,11 @@ class GameProvider extends ChangeNotifier {
 
   Future<void> setSearchQuery(String query) async {
     _filterState = _filterState.copyWith(searchQuery: query);
-    _games = await _repo.getGames(_filterState);
+    final generation = ++_searchGeneration;
+    final results = await _repo.getGames(_filterState);
+    // Only apply results if no newer search has been started
+    if (generation != _searchGeneration) return;
+    _games = results;
     notifyListeners();
   }
 
