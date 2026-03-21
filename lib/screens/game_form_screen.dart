@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/game_catalog.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cover_art_search.dart';
 import '../widgets/game_image_builder.dart';
 import '../widgets/touch_keyboard.dart';
 import 'game_form_io.dart' if (dart.library.html) 'game_form_web.dart';
+import 'game_search_io.dart' if (dart.library.html) 'game_search_web.dart';
 
 /// Form screen for adding or editing a game.
 class GameFormScreen extends StatefulWidget {
@@ -731,14 +734,52 @@ class _GameFormScreenState extends State<GameFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final provider = context.read<GameProvider>();
+    final title = _titleController.text.trim();
+
+    // Auto-fetch cover art if none set and adding a new game
+    var coverPath = _coverArtPath;
+    if (coverPath == null && !_isEditing && _selectedConsoleId != null) {
+      final console = provider.consoles
+          .where((c) => c.id == _selectedConsoleId)
+          .firstOrNull;
+      if (console != null) {
+        // Try LibRetro boxart first
+        final lrUrl =
+            GameCatalog.getLibRetroBoxartUrl(title, console.abbreviation);
+        if (lrUrl != null) {
+          coverPath = await downloadCoverArt(lrUrl);
+        }
+        // Fallback to RAWG search
+        if (coverPath == null) {
+          try {
+            final apiKey = context.read<SettingsProvider>().rawgApiKey;
+            final results = await GameCatalog.search(
+              title,
+              consoleAbbreviation: console.abbreviation,
+              rawgApiKey: apiKey,
+            );
+            if (results.isNotEmpty) {
+              final best = results.first;
+              if (best.rawgImageUrl != null) {
+                coverPath = await downloadCoverArt(best.rawgImageUrl!);
+              }
+              if (coverPath == null && best.coverUrl != null) {
+                coverPath = await downloadCoverArt(best.coverUrl!);
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
     final game = Game(
       id: widget.game?.id,
-      title: _titleController.text.trim(),
+      title: title,
       consoleId: _selectedConsoleId!,
       genre: _selectedGenre.trim(),
       minPlayers: _minPlayers,
       maxPlayers: _maxPlayers,
-      coverArtPath: _coverArtPath,
+      coverArtPath: coverPath,
       room: _roomController.text.trim().isEmpty
           ? null
           : _roomController.text.trim(),

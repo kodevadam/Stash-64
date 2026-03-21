@@ -525,13 +525,18 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     final titleKey = catalogGame.title.toLowerCase();
     setState(() => _loadingTitles.add(titleKey));
 
-    // Download cover art if available
+    // Download cover art — try multiple sources in order
     String? coverPath;
     if (catalogGame.coverUrl != null) {
       coverPath = await downloadCoverArt(catalogGame.coverUrl!);
     }
 
-    // Also try LibRetro boxart if no cover was downloaded
+    // Fallback to RAWG background_image if LibRetro boxart failed
+    if (coverPath == null && catalogGame.rawgImageUrl != null) {
+      coverPath = await downloadCoverArt(catalogGame.rawgImageUrl!);
+    }
+
+    // Last resort: construct LibRetro URL directly
     if (coverPath == null && _selectedConsole != null) {
       final lrUrl = GameCatalog.getLibRetroBoxartUrl(
           catalogGame.title, _selectedConsole!.abbreviation);
@@ -962,8 +967,39 @@ class _CustomGameFormState extends State<_CustomGameForm> {
     if (!_formKey.currentState!.validate()) return;
 
     final provider = context.read<GameProvider>();
+    final title = _titleController.text.trim();
+
+    // Auto-fetch cover art before saving
+    String? coverPath;
+    final lrUrl = GameCatalog.getLibRetroBoxartUrl(
+        title, widget.console.abbreviation);
+    if (lrUrl != null) {
+      coverPath = await downloadCoverArt(lrUrl);
+    }
+    // Fallback: search RAWG for cover image
+    if (coverPath == null) {
+      try {
+        final apiKey = context.read<SettingsProvider>().rawgApiKey;
+        final results = await GameCatalog.search(
+          title,
+          consoleAbbreviation: widget.console.abbreviation,
+          rawgApiKey: apiKey,
+        );
+        if (results.isNotEmpty) {
+          // Try RAWG background image first, then coverUrl
+          final best = results.first;
+          if (best.rawgImageUrl != null) {
+            coverPath = await downloadCoverArt(best.rawgImageUrl!);
+          }
+          if (coverPath == null && best.coverUrl != null) {
+            coverPath = await downloadCoverArt(best.coverUrl!);
+          }
+        }
+      } catch (_) {}
+    }
+
     final game = Game(
-      title: _titleController.text.trim(),
+      title: title,
       consoleId: widget.console.id!,
       genre: _genre,
       minPlayers: _minPlayers,
@@ -973,6 +1009,7 @@ class _CustomGameFormState extends State<_CustomGameForm> {
           ? null
           : _roomController.text.trim(),
       storageLocation: _storageController.text.trim(),
+      coverArtPath: coverPath,
     );
 
     await provider.addGame(game);

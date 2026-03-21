@@ -21,6 +21,7 @@ class GameProvider extends ChangeNotifier {
   FilterState _filterState = const FilterState();
   bool _isLoading = true;
   int _totalGameCount = 0;
+  int _ownedConsoleCount = 0;
   int _searchGeneration = 0;
   Timer? _searchDebounce;
 
@@ -32,6 +33,7 @@ class GameProvider extends ChangeNotifier {
   FilterState get filterState => _filterState;
   bool get isLoading => _isLoading;
   int get totalGameCount => _totalGameCount;
+  int get ownedConsoleCount => _ownedConsoleCount;
 
   /// Initialize provider: seed default consoles on first run, then load everything.
   Future<void> initialize() async {
@@ -51,6 +53,7 @@ class GameProvider extends ChangeNotifier {
     _storageLocations = await _repo.getStorageLocations();
     _rooms = await _repo.getRooms();
     _totalGameCount = await _repo.getGameCount();
+    _ownedConsoleCount = await _repo.getOwnedConsoleCount();
     _games = await _repo.getGames(_filterState);
   }
 

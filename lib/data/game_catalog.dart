@@ -8,6 +8,7 @@ class CatalogGame {
   final String? genre;
   final int? releaseYear;
   final String? coverUrl;
+  final String? rawgImageUrl; // RAWG background_image as fallback
   final int? minPlayers;
   final int? maxPlayers;
   final String? description;
@@ -22,6 +23,7 @@ class CatalogGame {
     this.genre,
     this.releaseYear,
     this.coverUrl,
+    this.rawgImageUrl,
     this.minPlayers,
     this.maxPlayers,
     this.description,
@@ -336,9 +338,9 @@ class GameCatalog {
             releaseYear = int.tryParse(released.substring(0, 4));
           }
 
-          // Use LibRetro boxart as cover if we know the console,
-          // otherwise fall back to RAWG background_image
-          String? coverUrl = game['background_image'] as String?;
+          // Prefer LibRetro boxart but keep RAWG image as fallback
+          final rawgImageUrl = game['background_image'] as String?;
+          String? coverUrl = rawgImageUrl;
           if (consoleAbbr != null) {
             final lrUrl = getLibRetroBoxartUrl(
                 game['name'] as String? ?? '', consoleAbbr);
@@ -359,6 +361,7 @@ class GameCatalog {
             genre: genres.isNotEmpty ? _mapGenre(genres.first) : null,
             releaseYear: releaseYear,
             coverUrl: coverUrl,
+            rawgImageUrl: rawgImageUrl,
             description: game['description_raw'] as String?,
             platforms: platforms,
             regions: _inferRegions(platforms),

@@ -128,8 +128,11 @@ class GameCard extends StatelessWidget {
 
   Widget _buildPlayerBadge() {
     final label = game.maxPlayers > 1
-        ? '${game.maxPlayers}P'
-        : '1P';
+        ? '${game.maxPlayers}'
+        : '1';
+    final color = game.maxPlayers > 1
+        ? AppTheme.accentCyan
+        : AppTheme.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -141,10 +144,8 @@ class GameCard extends StatelessWidget {
         children: [
           Icon(
             Icons.sports_esports,
-            size: 12,
-            color: game.maxPlayers > 1
-                ? AppTheme.accentCyan
-                : AppTheme.textSecondary,
+            size: 11,
+            color: color,
           ),
           const SizedBox(width: 3),
           Text(
@@ -152,9 +153,7 @@ class GameCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: game.maxPlayers > 1
-                  ? AppTheme.accentCyan
-                  : AppTheme.textSecondary,
+              color: color,
               fontFamily: 'monospace',
             ),
           ),

@@ -246,6 +246,13 @@ class ApiRepository implements DataRepository {
   }
 
   @override
+  Future<int> getOwnedConsoleCount() async {
+    // Derive from game list — count distinct console IDs
+    final games = await getGames(const FilterState());
+    return games.map((g) => g.consoleId).toSet().length;
+  }
+
+  @override
   Future<void> toggleFavorite(int gameId) async {
     final resp = await _client.post(
       Uri.parse('$baseUrl/api/games/$gameId/toggle-favorite'),

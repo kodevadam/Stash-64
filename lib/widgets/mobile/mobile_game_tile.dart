@@ -143,8 +143,9 @@ class MobileGameTile extends StatelessWidget {
   }
 
   Widget _playerBadge() {
-    final label = '${game.maxPlayers}P';
+    final label = '${game.maxPlayers}';
     final isMulti = game.maxPlayers > 1;
+    final color = isMulti ? AppTheme.accentCyan : AppTheme.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
@@ -154,15 +155,14 @@ class MobileGameTile extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.sports_esports, size: 10,
-              color: isMulti ? AppTheme.accentCyan : AppTheme.textSecondary),
+          Icon(Icons.sports_esports, size: 10, color: color),
           const SizedBox(width: 2),
           Text(
             label,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: isMulti ? AppTheme.accentCyan : AppTheme.textSecondary,
+              color: color,
               fontFamily: 'monospace',
             ),
           ),

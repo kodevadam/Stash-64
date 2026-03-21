@@ -36,7 +36,7 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                   _buildStat(
                       context, '${provider.totalGameCount}', 'Games'),
-                  _buildStat(context, '${provider.consoles.length}',
+                  _buildStat(context, '${provider.ownedConsoleCount}',
                       'Consoles'),
                   _buildStat(
                       context, '${provider.genres.length}', 'Genres'),
@@ -55,7 +55,7 @@ class SettingsScreen extends StatelessWidget {
               leading: const Icon(Icons.videogame_asset,
                   color: AppTheme.accentGold),
               title: const Text('Manage Consoles'),
-              subtitle: Text('${provider.consoles.length} consoles'),
+              subtitle: Text('${provider.ownedConsoleCount} owned, ${provider.consoles.length} available'),
               trailing: const Icon(Icons.chevron_right),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

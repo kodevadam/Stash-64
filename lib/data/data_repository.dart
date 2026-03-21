@@ -23,6 +23,7 @@ abstract class DataRepository {
   Future<List<String>> getStorageLocations();
   Future<List<String>> getRooms();
   Future<int> getGameCount();
+  Future<int> getOwnedConsoleCount();
   Future<void> toggleFavorite(int gameId);
 
   // --- Screenshot operations ---
