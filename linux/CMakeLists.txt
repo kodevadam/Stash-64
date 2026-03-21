@@ -16,11 +16,6 @@ cmake_policy(SET CMP0063 NEW)
 # Load bundled libraries from the lib/ directory relative to the binary.
 set(CMAKE_INSTALL_RPATH "$ORIGIN/lib")
 
-# Set install prefix to the build bundle directory if not already set by Flutter.
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/bundle" CACHE PATH "Install prefix" FORCE)
-endif()
-
 # Root filesystem for cross-building.
 if(FLUTTER_TARGET_PLATFORM_SYSROOT)
   set(CMAKE_SYSROOT ${FLUTTER_TARGET_PLATFORM_SYSROOT})
@@ -83,20 +78,16 @@ add_dependencies(${BINARY_NAME} flutter_assemble)
 # Generated plugin build rules — must come after the target is defined.
 include(flutter/generated_plugins.cmake)
 
-# Only the install rules apply to bundled applications.
+# === Installation ===
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-# Install Flutter engine, ICU data, and assets.
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
   COMPONENT Runtime)
+
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
-install(DIRECTORY "${PROJECT_BUILD_DIR}/flutter_assets"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/data"
-  COMPONENT Runtime)
 
-# Install plugin shared libraries to lib/ so the binary can find them at runtime.
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
     DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
