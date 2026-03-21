@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../models/game.dart';
 import '../../theme/app_theme.dart';
+import '../game_image.dart';
 
 /// A compact list tile for displaying games in mobile view.
 class MobileGameTile extends StatelessWidget {
@@ -34,7 +33,12 @@ class MobileGameTile extends StatelessWidget {
                 child: SizedBox(
                   width: 52,
                   height: 68,
-                  child: _buildCover(),
+                  child: GameImage(
+                    imagePath: game.coverArtPath,
+                    placeholderText: game.consoleAbbreviation ?? '?',
+                    width: 52,
+                    height: 68,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -113,34 +117,6 @@ class MobileGameTile extends StatelessWidget {
               const Icon(Icons.chevron_right,
                   size: 20, color: AppTheme.textSecondary),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCover() {
-    if (game.coverArtPath != null && game.coverArtPath!.isNotEmpty) {
-      return Image.file(
-        File(game.coverArtPath!),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _placeholder(),
-      );
-    }
-    return _placeholder();
-  }
-
-  Widget _placeholder() {
-    return Container(
-      color: AppTheme.surfaceDark,
-      child: Center(
-        child: Text(
-          game.consoleAbbreviation ?? '?',
-          style: TextStyle(
-            fontSize: 11,
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textSecondary.withOpacity(0.5),
           ),
         ),
       ),

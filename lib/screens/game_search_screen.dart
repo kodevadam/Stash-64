@@ -1,14 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../data/database_helper.dart';
 import '../data/game_catalog.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
@@ -16,6 +12,7 @@ import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/touch_keyboard.dart';
+import 'game_search_io.dart' if (dart.library.html) 'game_search_web.dart';
 
 /// Add Game screen with flow: 1) Select console, 2) Search/browse games,
 /// 3) Pick game from results or type custom.
@@ -476,31 +473,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     // Download cover art if available
     String? coverPath;
     if (catalogGame.coverUrl != null) {
-      try {
-        final response =
-            await http.get(Uri.parse(catalogGame.coverUrl!)).timeout(
-          const Duration(seconds: 15),
-        );
-        if (response.statusCode == 200) {
-          final appDir = await getApplicationDocumentsDirectory();
-          final coverDir = Directory(p.join(appDir.path, 'covers'));
-          if (!await coverDir.exists()) {
-            await coverDir.create(recursive: true);
-          }
-          String ext = '.jpg';
-          final contentType = response.headers['content-type'];
-          if (contentType != null) {
-            if (contentType.contains('png')) ext = '.png';
-            if (contentType.contains('webp')) ext = '.webp';
-          }
-          final destPath = p.join(coverDir.path,
-              '${DateTime.now().millisecondsSinceEpoch}$ext');
-          await File(destPath).writeAsBytes(response.bodyBytes);
-          coverPath = destPath;
-        }
-      } catch (_) {
-        // Cover download failed, continue without it
-      }
+      coverPath = await downloadCoverArt(catalogGame.coverUrl!);
     }
 
     // Also try LibRetro boxart if no cover was downloaded
@@ -508,22 +481,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       final lrUrl = GameCatalog.getLibRetroBoxartUrl(
           catalogGame.title, _selectedConsole!.abbreviation);
       if (lrUrl != null) {
-        try {
-          final response = await http.get(Uri.parse(lrUrl)).timeout(
-            const Duration(seconds: 10),
-          );
-          if (response.statusCode == 200) {
-            final appDir = await getApplicationDocumentsDirectory();
-            final coverDir = Directory(p.join(appDir.path, 'covers'));
-            if (!await coverDir.exists()) {
-              await coverDir.create(recursive: true);
-            }
-            final destPath = p.join(coverDir.path,
-                '${DateTime.now().millisecondsSinceEpoch}.png');
-            await File(destPath).writeAsBytes(response.bodyBytes);
-            coverPath = destPath;
-          }
-        } catch (_) {}
+        coverPath = await downloadCoverArt(lrUrl);
       }
     }
 
@@ -606,37 +564,15 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final results = data['results'] as List<dynamic>? ?? [];
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final ssDir = Directory(p.join(appDir.path, 'screenshots', '$gameId'));
-      if (!await ssDir.exists()) {
-        await ssDir.create(recursive: true);
+      // Collect screenshot URLs
+      final urls = <String>[];
+      for (final item in results) {
+        if (urls.length >= 5) break;
+        final imageUrl = item['image'] as String?;
+        if (imageUrl != null) urls.add(imageUrl);
       }
 
-      // Download up to 5 screenshots
-      int count = 0;
-      for (final item in results) {
-        if (count >= 5) break;
-        final imageUrl = item['image'] as String?;
-        if (imageUrl == null) continue;
-        try {
-          final imgResponse = await http.get(Uri.parse(imageUrl)).timeout(
-            const Duration(seconds: 15),
-          );
-          if (imgResponse.statusCode == 200) {
-            String ext = '.jpg';
-            final ct = imgResponse.headers['content-type'];
-            if (ct != null) {
-              if (ct.contains('png')) ext = '.png';
-              if (ct.contains('webp')) ext = '.webp';
-            }
-            final destPath = p.join(ssDir.path,
-                '${DateTime.now().millisecondsSinceEpoch}_$count$ext');
-            await File(destPath).writeAsBytes(imgResponse.bodyBytes);
-            await DatabaseHelper.instance.insertScreenshot(gameId, destPath);
-            count++;
-          }
-        } catch (_) {}
-      }
+      await downloadAndSaveScreenshots(gameId, urls);
     } catch (_) {
       // Non-fatal — screenshots are a bonus
     }

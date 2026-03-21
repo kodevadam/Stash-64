@@ -1,15 +1,12 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../data/database_helper.dart';
 import '../models/game.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/game_image_builder.dart';
+import 'game_detail_native.dart' if (dart.library.html) 'game_detail_web.dart';
 import 'game_form_screen.dart';
 
 /// Full-screen game detail page showing cover art, info, and screenshots.
@@ -34,9 +31,11 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Future<void> _loadGame() async {
-    final db = DatabaseHelper.instance;
-    final game = await db.getGame(widget.gameId);
-    final screenshots = await db.getScreenshots(widget.gameId);
+    final provider = context.read<GameProvider>();
+    // Reload from provider's repository
+    final allGames = provider.games;
+    final game = allGames.where((g) => g.id == widget.gameId).firstOrNull;
+    final screenshots = await loadScreenshots(widget.gameId);
     if (mounted) {
       setState(() {
         _game = game;
@@ -401,8 +400,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.file(
-            File(game.coverArtPath!),
+          buildPlatformImage(
+            path: game.coverArtPath!,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _buildCoverPlaceholder(game),
           ),
@@ -535,8 +534,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Image.file(
-                File(filePath),
+              child: buildPlatformImage(
+                path: filePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const Center(
                   child: Icon(Icons.broken_image, color: AppTheme.textSecondary),
@@ -584,7 +583,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               title: const Text('Delete Screenshot'),
               onTap: () async {
                 Navigator.pop(context);
-                await DatabaseHelper.instance.deleteScreenshot(screenshotId);
+                await deleteScreenshotById(screenshotId);
                 _loadGame();
               },
             ),
@@ -595,31 +594,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
   }
 
   Future<void> _addScreenshot(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-
-    final appDir = await getApplicationDocumentsDirectory();
-    final screenshotDir =
-        Directory(p.join(appDir.path, 'screenshots', '${widget.gameId}'));
-    if (!await screenshotDir.exists()) {
-      await screenshotDir.create(recursive: true);
-    }
-
-    for (final file in result.files) {
-      if (file.path == null) continue;
-      final ext = p.extension(file.path!);
-      final newName =
-          '${DateTime.now().millisecondsSinceEpoch}$ext';
-      final destPath = p.join(screenshotDir.path, newName);
-      await File(file.path!).copy(destPath);
-      await DatabaseHelper.instance
-          .insertScreenshot(widget.gameId, destPath);
-    }
-
+    await addScreenshotToGame(context, widget.gameId);
     _loadGame();
   }
 
@@ -711,8 +686,8 @@ class _ScreenshotViewerState extends State<_ScreenshotViewer> {
           final filePath = widget.screenshots[index]['file_path'] as String;
           return InteractiveViewer(
             child: Center(
-              child: Image.file(
-                File(filePath),
+              child: buildPlatformImage(
+                path: filePath,
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const Icon(
                   Icons.broken_image,

@@ -1,13 +1,12 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/import_export_helper.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/kiosk_wrapper.dart';
 import 'console_management_screen.dart';
+import 'settings_io.dart' if (dart.library.html) 'settings_web.dart';
 
 /// Settings screen with console management, import/export, and kiosk controls.
 class SettingsScreen extends StatelessWidget {
@@ -17,7 +16,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
     final settings = context.watch<SettingsProvider>();
-    final kiosk = KioskWrapper.of(context);
+    final kioskState = getKioskState(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -69,39 +68,41 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Import/Export
-          _buildSectionHeader(context, 'BACKUP & RESTORE'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.upload,
-                      color: AppTheme.accentCyan),
-                  title: const Text('Export Collection'),
-                  subtitle: const Text(
-                      'Save your entire collection as a JSON backup'),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 4),
-                  onTap: () => _exportCollection(context),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.download,
-                      color: AppTheme.accentCyan),
-                  title: const Text('Import Collection'),
-                  subtitle:
-                      const Text('Restore from a JSON backup file'),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 4),
-                  onTap: () => _importCollection(context),
-                ),
-              ],
+          // Import/Export (native only)
+          if (!kIsWeb) ...[
+            _buildSectionHeader(context, 'BACKUP & RESTORE'),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.upload,
+                        color: AppTheme.accentCyan),
+                    title: const Text('Export Collection'),
+                    subtitle: const Text(
+                        'Save your entire collection as a JSON backup'),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    onTap: () => exportCollection(context),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.download,
+                        color: AppTheme.accentCyan),
+                    title: const Text('Import Collection'),
+                    subtitle:
+                        const Text('Restore from a JSON backup file'),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    onTap: () => importCollection(context),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
 
-          // Kiosk mode
-          if (kiosk != null) ...[
+          // Kiosk mode (native only)
+          if (kioskState != null) ...[
             _buildSectionHeader(context, 'KIOSK MODE'),
             Card(
               child: Column(
@@ -111,11 +112,14 @@ class SettingsScreen extends StatelessWidget {
                         color: AppTheme.accentGold),
                     title: const Text('Fullscreen'),
                     subtitle: const Text('Also toggle with F11 or double-tap'),
-                    value: kiosk.isFullscreen,
+                    value: kioskState['isFullscreen'] as bool,
                     activeColor: AppTheme.accentGold,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 4),
-                    onChanged: (_) => kiosk.toggleFullscreen(),
+                    onChanged: (_) {
+                      final toggle = kioskState['toggleFullscreen'] as VoidCallback;
+                      toggle();
+                    },
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -284,124 +288,6 @@ class SettingsScreen extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 12, color: AppTheme.textSecondary)),
       ],
-    );
-  }
-
-  Future<void> _exportCollection(BuildContext context) async {
-    _showLoadingDialog(context, 'Exporting...');
-
-    try {
-      final filePath = await ImportExportHelper.exportToFile();
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-        _showResultDialog(
-          context,
-          'Export Complete',
-          'Collection saved to:\n\n$filePath',
-          icon: Icons.check_circle,
-          iconColor: AppTheme.accentCyan,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        _showResultDialog(
-          context,
-          'Export Failed',
-          'Error: $e',
-          icon: Icons.error,
-          iconColor: AppTheme.errorRed,
-        );
-      }
-    }
-  }
-
-  Future<void> _importCollection(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-
-    if (result == null || result.files.isEmpty || result.files.first.path == null) {
-      return;
-    }
-
-    if (!context.mounted) return;
-    _showLoadingDialog(context, 'Importing...');
-
-    try {
-      final importResult =
-          await ImportExportHelper.importFromFile(result.files.first.path!);
-
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-
-        // Refresh provider data
-        await context.read<GameProvider>().initialize();
-
-        if (context.mounted) {
-          _showResultDialog(
-            context,
-            importResult.success ? 'Import Complete' : 'Import Failed',
-            importResult.message,
-            icon: importResult.success ? Icons.check_circle : Icons.error,
-            iconColor:
-                importResult.success ? AppTheme.accentCyan : AppTheme.errorRed,
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        _showResultDialog(
-          context,
-          'Import Failed',
-          'Error: $e',
-          icon: Icons.error,
-          iconColor: AppTheme.errorRed,
-        );
-      }
-    }
-  }
-
-  void _showLoadingDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
-        content: Row(
-          children: [
-            const CircularProgressIndicator(color: AppTheme.accentGold),
-            const SizedBox(width: 20),
-            Text(message),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showResultDialog(BuildContext context, String title, String message,
-      {required IconData icon, required Color iconColor}) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceDark,
-        title: Row(
-          children: [
-            Icon(icon, color: iconColor),
-            const SizedBox(width: 12),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
     );
   }
 }

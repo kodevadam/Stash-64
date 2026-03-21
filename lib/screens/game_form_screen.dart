@@ -1,9 +1,4 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../models/game.dart';
@@ -11,7 +6,9 @@ import '../models/game_console.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cover_art_search.dart';
+import '../widgets/game_image_builder.dart';
 import '../widgets/touch_keyboard.dart';
+import 'game_form_io.dart' if (dart.library.html) 'game_form_web.dart';
 
 /// Form screen for adding or editing a game.
 class GameFormScreen extends StatefulWidget {
@@ -377,8 +374,8 @@ class _GameFormScreenState extends State<GameFormScreen> {
                 ? Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.file(
-                        File(_coverArtPath!),
+                      buildPlatformImage(
+                        path: _coverArtPath!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
                             _buildPickerPlaceholder(),
@@ -724,25 +721,10 @@ class _GameFormScreenState extends State<GameFormScreen> {
   }
 
   Future<void> _pickCoverArt() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result == null || result.files.isEmpty) return;
-
-    final sourcePath = result.files.first.path;
-    if (sourcePath == null) return;
-
-    // Copy to app directory
-    final appDir = await getApplicationDocumentsDirectory();
-    final coverDir = Directory(p.join(appDir.path, 'covers'));
-    if (!await coverDir.exists()) {
-      await coverDir.create(recursive: true);
+    final path = await pickAndSaveCoverArt();
+    if (path != null) {
+      setState(() => _coverArtPath = path);
     }
-
-    final ext = p.extension(sourcePath);
-    final destPath = p.join(
-        coverDir.path, '${DateTime.now().millisecondsSinceEpoch}$ext');
-    await File(sourcePath).copy(destPath);
-
-    setState(() => _coverArtPath = destPath);
   }
 
   Future<void> _save(BuildContext context) async {

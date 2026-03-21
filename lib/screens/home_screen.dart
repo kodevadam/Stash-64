@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -54,6 +56,16 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.casino),
+              iconSize: 30,
+              tooltip: 'Random Game',
+              onPressed: () => _pickRandomGame(context),
+            ),
+          ),
           SizedBox(
             width: 56,
             height: 56,
@@ -282,5 +294,19 @@ class HomeScreen extends StatelessWidget {
         builder: (_) => GameDetailScreen(gameId: gameId),
       ),
     );
+  }
+
+  void _pickRandomGame(BuildContext context) {
+    final provider = context.read<GameProvider>();
+    final games = provider.games;
+    if (games.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No games to pick from!')),
+      );
+      return;
+    }
+    final random = Random();
+    final game = games[random.nextInt(games.length)];
+    _navigateToGameDetail(context, game.id!);
   }
 }

@@ -33,3 +33,12 @@ coverage/
 # Generated
 *.g.dart
 *.freezed.dart
+
+# Server
+server/.dart_tool/
+server/.env
+
+# Secrets — never commit
+.env
+*.pem
+*.key

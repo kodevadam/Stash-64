@@ -1,14 +1,15 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/database_helper.dart';
-import '../data/sample_data.dart';
+import '../data/data_repository.dart';
 import '../models/filter_state.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
 
 /// Central state manager for the game collection.
 class GameProvider extends ChangeNotifier {
-  final DatabaseHelper _db = DatabaseHelper.instance;
+  final DataRepository _repo;
+
+  GameProvider(this._repo);
 
   List<Game> _games = [];
   List<GameConsole> _consoles = [];
@@ -33,7 +34,7 @@ class GameProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    await SampleData.seed(_db);
+    await _repo.initialize();
     await _refreshAll();
 
     _isLoading = false;
@@ -41,83 +42,83 @@ class GameProvider extends ChangeNotifier {
   }
 
   Future<void> _refreshAll() async {
-    _consoles = await _db.getConsoles();
-    _genres = await _db.getGenres();
-    _storageLocations = await _db.getStorageLocations();
-    _rooms = await _db.getRooms();
-    _totalGameCount = await _db.getGameCount();
-    _games = await _db.getGames(_filterState);
+    _consoles = await _repo.getConsoles();
+    _genres = await _repo.getGenres();
+    _storageLocations = await _repo.getStorageLocations();
+    _rooms = await _repo.getRooms();
+    _totalGameCount = await _repo.getGameCount();
+    _games = await _repo.getGames(_filterState);
   }
 
   // --- Filtering ---
 
   Future<void> setFilter(FilterState newFilter) async {
     _filterState = newFilter;
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   Future<void> clearFilters() async {
     _filterState = const FilterState();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   Future<void> setSearchQuery(String query) async {
     _filterState = _filterState.copyWith(searchQuery: query);
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   // --- Game CRUD ---
 
   Future<int> addGame(Game game) async {
-    final id = await _db.insertGame(game);
+    final id = await _repo.insertGame(game);
     await _refreshAll();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
     return id;
   }
 
   Future<void> updateGame(Game game) async {
-    await _db.updateGame(game);
+    await _repo.updateGame(game);
     await _refreshAll();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   Future<void> deleteGame(int id) async {
-    await _db.deleteGame(id);
+    await _repo.deleteGame(id);
     await _refreshAll();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   Future<void> toggleFavorite(int gameId) async {
-    await _db.toggleFavorite(gameId);
-    _games = await _db.getGames(_filterState);
+    await _repo.toggleFavorite(gameId);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   // --- Console CRUD ---
 
   Future<void> addConsole(GameConsole console) async {
-    await _db.insertConsole(console);
-    _consoles = await _db.getConsoles();
+    await _repo.insertConsole(console);
+    _consoles = await _repo.getConsoles();
     notifyListeners();
   }
 
   Future<void> updateConsole(GameConsole console) async {
-    await _db.updateConsole(console);
+    await _repo.updateConsole(console);
     await _refreshAll();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 
   Future<void> deleteConsole(int id) async {
-    await _db.deleteConsole(id);
+    await _repo.deleteConsole(id);
     await _refreshAll();
-    _games = await _db.getGames(_filterState);
+    _games = await _repo.getGames(_filterState);
     notifyListeners();
   }
 }

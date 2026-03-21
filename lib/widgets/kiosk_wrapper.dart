@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -273,24 +274,21 @@ class _FloatingCovers extends StatelessWidget {
               left: MediaQuery.of(context).size.width * xBase,
               top: MediaQuery.of(context).size.height * yBase + offset,
               child: Opacity(
-                opacity: 0.15,
-                child: Container(
-                  width: 100,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardDark,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      game.consoleAbbreviation ?? '?',
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
+                opacity: 0.18,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 100,
+                    height: 140,
+                    child: game.coverArtPath != null &&
+                            game.coverArtPath!.isNotEmpty
+                        ? Image.file(
+                            File(game.coverArtPath!),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _placeholder(game),
+                          )
+                        : _placeholder(game),
                   ),
                 ),
               ),
@@ -298,6 +296,23 @@ class _FloatingCovers extends StatelessWidget {
           }),
         );
       },
+    );
+  }
+
+  Widget _placeholder(Game game) {
+    return Container(
+      color: AppTheme.cardDark,
+      child: Center(
+        child: Text(
+          game.consoleAbbreviation ?? '?',
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 }

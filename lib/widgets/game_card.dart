@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../models/game.dart';
 import '../theme/app_theme.dart';
+import 'game_image_builder.dart';
 
 /// A touch-friendly card displaying a game's cover art, title, and key info.
 class GameCard extends StatelessWidget {
@@ -166,9 +165,8 @@ class GameCard extends StatelessWidget {
 
   Widget _buildCoverArt() {
     if (game.coverArtPath != null && game.coverArtPath!.isNotEmpty) {
-      final file = File(game.coverArtPath!);
-      return Image.file(
-        file,
+      return buildPlatformImage(
+        path: game.coverArtPath!,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => _buildPlaceholder(),
       );

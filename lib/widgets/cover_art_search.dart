@@ -1,15 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-
 import 'package:provider/provider.dart';
 
 import '../data/game_catalog.dart';
 import '../providers/settings_provider.dart';
+import '../screens/game_search_io.dart' if (dart.library.html) '../screens/game_search_web.dart';
 import '../theme/app_theme.dart';
 import 'touch_keyboard.dart';
 
@@ -225,29 +222,10 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
     setState(() => _isDownloading = true);
 
     try {
-      final response = await http.get(Uri.parse(result.imageUrl)).timeout(
-        const Duration(seconds: 20),
-      );
+      final path = await downloadCoverArt(result.imageUrl);
 
-      if (response.statusCode == 200) {
-        final appDir = await getApplicationDocumentsDirectory();
-        final coverDir = Directory(p.join(appDir.path, 'covers'));
-        if (!await coverDir.exists()) {
-          await coverDir.create(recursive: true);
-        }
-
-        String ext = '.jpg';
-        final contentType = response.headers['content-type'];
-        if (contentType != null) {
-          if (contentType.contains('png')) ext = '.png';
-          if (contentType.contains('webp')) ext = '.webp';
-        }
-
-        final destPath = p.join(coverDir.path,
-            '${DateTime.now().millisecondsSinceEpoch}$ext');
-        await File(destPath).writeAsBytes(response.bodyBytes);
-
-        if (mounted) Navigator.pop(context, destPath);
+      if (path != null) {
+        if (mounted) Navigator.pop(context, path);
       } else {
         if (mounted) {
           setState(() {

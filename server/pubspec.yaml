@@ -1,0 +1,19 @@
+name: stash64_server
+description: Stash 64 backend API server with PostgreSQL.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  shelf_cors_headers: ^0.1.5
+  postgres: ^3.1.0
+  crypto: ^3.0.0
+  http: ^1.1.0
+  args: ^2.4.0
+
+dev_dependencies:
+  lints: ^3.0.0

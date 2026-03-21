@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'data/database_helper.dart';
 import 'data/image_cache_helper.dart';
+import 'data/sqlite_repository.dart';
 import 'providers/game_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
@@ -27,8 +28,12 @@ class Stash64App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => GameProvider()..initialize()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
+        ChangeNotifierProvider(
+          create: (_) => GameProvider(SqliteRepository())..initialize(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider()..initialize(),
+        ),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {

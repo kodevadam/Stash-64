@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -106,6 +108,11 @@ class _BrowseTab extends StatelessWidget {
         ),
         toolbarHeight: 48,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.casino, size: 22),
+            tooltip: 'Random Game',
+            onPressed: () => _pickRandomGame(context),
+          ),
           IconButton(
             icon: const Icon(Icons.tune, size: 22),
             onPressed: () => _showFilterSheet(context),
@@ -331,6 +338,25 @@ class _BrowseTab extends StatelessWidget {
     }
 
     return chips;
+  }
+
+  void _pickRandomGame(BuildContext context) {
+    final provider = context.read<GameProvider>();
+    final games = provider.games;
+    if (games.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No games to pick from!')),
+      );
+      return;
+    }
+    final random = Random();
+    final game = games[random.nextInt(games.length)];
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GameDetailScreen(gameId: game.id!),
+      ),
+    );
   }
 
   void _showFilterSheet(BuildContext context) {
