@@ -247,9 +247,14 @@ class ApiRepository implements DataRepository {
 
   @override
   Future<int> getOwnedConsoleCount() async {
-    // Derive from game list — count distinct console IDs
+    final ids = await getOwnedConsoleIds();
+    return ids.length;
+  }
+
+  @override
+  Future<Set<int>> getOwnedConsoleIds() async {
     final games = await getGames(const FilterState());
-    return games.map((g) => g.consoleId).toSet().length;
+    return games.map((g) => g.consoleId).toSet();
   }
 
   @override

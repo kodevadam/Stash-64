@@ -22,11 +22,14 @@ class GameProvider extends ChangeNotifier {
   bool _isLoading = true;
   int _totalGameCount = 0;
   int _ownedConsoleCount = 0;
+  Set<int> _ownedConsoleIds = {};
   int _searchGeneration = 0;
   Timer? _searchDebounce;
 
   List<Game> get games => _games;
   List<GameConsole> get consoles => _consoles;
+  List<GameConsole> get ownedConsoles =>
+      _consoles.where((c) => _ownedConsoleIds.contains(c.id)).toList();
   List<String> get genres => _genres;
   List<String> get storageLocations => _storageLocations;
   List<String> get rooms => _rooms;
@@ -53,7 +56,8 @@ class GameProvider extends ChangeNotifier {
     _storageLocations = await _repo.getStorageLocations();
     _rooms = await _repo.getRooms();
     _totalGameCount = await _repo.getGameCount();
-    _ownedConsoleCount = await _repo.getOwnedConsoleCount();
+    _ownedConsoleIds = await _repo.getOwnedConsoleIds();
+    _ownedConsoleCount = _ownedConsoleIds.length;
     _games = await _repo.getGames(_filterState);
   }
 

@@ -276,6 +276,13 @@ class DatabaseHelper {
     return result.first['count'] as int;
   }
 
+  Future<Set<int>> getOwnedConsoleIds() async {
+    final db = await database;
+    final result =
+        await db.rawQuery('SELECT DISTINCT console_id FROM games');
+    return result.map((r) => r['console_id'] as int).toSet();
+  }
+
   /// Toggle favorite status for a game.
   Future<void> toggleFavorite(int gameId) async {
     final db = await database;

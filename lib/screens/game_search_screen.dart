@@ -29,7 +29,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   List<CatalogGame> _results = [];
   bool _isSearching = false;
   String? _error;
-  final Set<String> _addedTitles = {};
+  final Map<String, int> _addedTitles = {}; // titleKey -> gameId
   final Set<String> _loadingTitles = {};
 
   // Step 1: console selection
@@ -410,7 +410,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
   Widget _buildResultCard(CatalogGame catalogGame, GameProvider provider) {
     final titleKey = catalogGame.title.toLowerCase();
-    final alreadyAdded = _addedTitles.contains(titleKey);
+    final alreadyAdded = _addedTitles.containsKey(titleKey);
     final isLoading = _loadingTitles.contains(titleKey);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -418,7 +418,11 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: (alreadyAdded || isLoading) ? null : () => _showAddDialog(catalogGame, provider),
+        onTap: isLoading
+            ? null
+            : alreadyAdded
+                ? () => _confirmRemove(catalogGame, provider)
+                : () => _showAddDialog(catalogGame, provider),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -510,6 +514,48 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     );
   }
 
+  Future<void> _confirmRemove(
+      CatalogGame catalogGame, GameProvider provider) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Remove Game'),
+        content: Text(
+            'Remove "${catalogGame.title}" from your collection?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('CANCEL'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            child: const Text('REMOVE'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final titleKey = catalogGame.title.toLowerCase();
+    final gameId = _addedTitles[titleKey];
+    if (gameId != null) {
+      await provider.deleteGame(gameId);
+      setState(() => _addedTitles.remove(titleKey));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${catalogGame.title} removed from collection'),
+            backgroundColor: AppTheme.errorRed.withOpacity(0.9),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showAddDialog(
       CatalogGame catalogGame, GameProvider provider) async {
     final result = await showDialog<_AddGameResult>(
@@ -590,10 +636,10 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
     final gameId = await provider.addGame(game);
 
-    // Mark as added so the icon updates
+    // Mark as added so the icon updates (store ID for potential removal)
     setState(() {
       _loadingTitles.remove(titleKey);
-      _addedTitles.add(titleKey);
+      _addedTitles[titleKey] = gameId;
     });
 
     // Auto-fetch RAWG screenshots in background

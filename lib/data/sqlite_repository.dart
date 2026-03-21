@@ -63,6 +63,9 @@ class SqliteRepository implements DataRepository {
   Future<int> getOwnedConsoleCount() => _db.getOwnedConsoleCount();
 
   @override
+  Future<Set<int>> getOwnedConsoleIds() => _db.getOwnedConsoleIds();
+
+  @override
   Future<void> toggleFavorite(int gameId) => _db.toggleFavorite(gameId);
 
   // --- Screenshot operations ---

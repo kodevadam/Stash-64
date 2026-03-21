@@ -161,7 +161,7 @@ class FilterDrawer extends StatelessWidget {
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: provider.consoles.map((console) {
+        children: provider.ownedConsoles.map((console) {
           final isSelected = filter.consoleId == console.id;
           return SizedBox(
             height: 48,
