@@ -30,6 +30,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   bool _isSearching = false;
   String? _error;
   final Set<String> _addedTitles = {};
+  final Set<String> _loadingTitles = {};
 
   // Step 1: console selection
   GameConsole? _selectedConsole;
@@ -369,14 +370,16 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   }
 
   Widget _buildResultCard(CatalogGame catalogGame, GameProvider provider) {
-    final alreadyAdded = _addedTitles.contains(catalogGame.title.toLowerCase());
+    final titleKey = catalogGame.title.toLowerCase();
+    final alreadyAdded = _addedTitles.contains(titleKey);
+    final isLoading = _loadingTitles.contains(titleKey);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: AppTheme.cardDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: alreadyAdded ? null : () => _showAddDialog(catalogGame, provider),
+        onTap: (alreadyAdded || isLoading) ? null : () => _showAddDialog(catalogGame, provider),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -446,11 +449,21 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   ],
                 ),
               ),
-              Icon(
-                alreadyAdded ? Icons.check_circle : Icons.add_circle_outline,
-                color: alreadyAdded ? AppTheme.accentCyan : AppTheme.accentGold,
-                size: 36,
-              ),
+              if (isLoading)
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: AppTheme.accentGold,
+                  ),
+                )
+              else
+                Icon(
+                  alreadyAdded ? Icons.check_circle : Icons.add_circle_outline,
+                  color: alreadyAdded ? AppTheme.accentCyan : AppTheme.accentGold,
+                  size: 36,
+                ),
             ],
           ),
         ),
@@ -469,6 +482,9 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     );
 
     if (result == null || !mounted) return;
+
+    final titleKey = catalogGame.title.toLowerCase();
+    setState(() => _loadingTitles.add(titleKey));
 
     // Download cover art if available
     String? coverPath;
@@ -532,7 +548,8 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
     // Mark as added so the icon updates
     setState(() {
-      _addedTitles.add(catalogGame.title.toLowerCase());
+      _loadingTitles.remove(titleKey);
+      _addedTitles.add(titleKey);
     });
 
     // Auto-fetch RAWG screenshots in background
