@@ -7,7 +7,6 @@ import '../widgets/filter_drawer.dart';
 import '../widgets/game_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'game_detail_screen.dart';
-import 'game_form_screen.dart';
 import 'game_search_screen.dart';
 import 'settings_screen.dart';
 
@@ -41,7 +40,11 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.add),
               iconSize: 30,
               tooltip: 'Add Game',
-              onPressed: () => _showAddOptions(context),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const GameSearchScreen()),
+              ),
             ),
           ),
           SizedBox(
@@ -74,78 +77,6 @@ class HomeScreen extends StatelessWidget {
             child: _buildGameGrid(context),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showAddOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.surfaceDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.textSecondary.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 72,
-              child: ListTile(
-                leading: const Icon(Icons.search, size: 32,
-                    color: AppTheme.accentCyan),
-                title: const Text('Search Game Database',
-                    style: TextStyle(fontSize: 18)),
-                subtitle: const Text(
-                    'Find and add games from the catalog',
-                    style: TextStyle(color: AppTheme.textSecondary)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 24),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const GameSearchScreen()),
-                  );
-                },
-              ),
-            ),
-            SizedBox(
-              height: 72,
-              child: ListTile(
-                leading: const Icon(Icons.edit, size: 32,
-                    color: AppTheme.accentGold),
-                title: const Text('Add Custom Game',
-                    style: TextStyle(fontSize: 18)),
-                subtitle: const Text(
-                    'Manually enter all game details',
-                    style: TextStyle(color: AppTheme.textSecondary)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 24),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const GameFormScreen()),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
       ),
     );
   }
@@ -276,52 +207,26 @@ class HomeScreen extends StatelessWidget {
                   ),
                 )
               else
-                Column(
-                  children: [
-                    SizedBox(
-                      height: 56,
-                      width: 280,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const GameSearchScreen()),
-                        ),
-                        icon: const Icon(Icons.search, size: 24),
-                        label: const Text('Search Game Database',
-                            style: TextStyle(fontSize: 16)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accentCyan,
-                          foregroundColor: AppTheme.primaryDark,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                SizedBox(
+                  height: 60,
+                  width: 280,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GameSearchScreen()),
+                    ),
+                    icon: const Icon(Icons.add, size: 28),
+                    label: const Text('Add Game',
+                        style: TextStyle(fontSize: 18)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentGold,
+                      foregroundColor: AppTheme.primaryDark,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 56,
-                      width: 280,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const GameFormScreen()),
-                        ),
-                        icon: const Icon(Icons.add, size: 24),
-                        label: const Text('Add Custom Game',
-                            style: TextStyle(fontSize: 16)),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: AppTheme.accentGold.withOpacity(0.5)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
             ],
           ),

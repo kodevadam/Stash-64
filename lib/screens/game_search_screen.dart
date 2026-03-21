@@ -13,9 +13,8 @@ import '../providers/game_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/touch_keyboard.dart';
 
-/// Screen for searching the game catalog and adding games to the collection.
-/// Users search by title, optionally filter by console, then pick a game
-/// from results. The game's data is pre-filled and can be adjusted.
+/// Add Game screen with flow: 1) Select console, 2) Search/browse games,
+/// 3) Pick game from results or type custom.
 class GameSearchScreen extends StatefulWidget {
   const GameSearchScreen({super.key});
 
@@ -28,8 +27,9 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   List<CatalogGame> _results = [];
   bool _isSearching = false;
   String? _error;
-  int? _selectedConsoleId;
-  String? _selectedConsoleAbbr;
+
+  // Step 1: console selection
+  GameConsole? _selectedConsole;
 
   @override
   void dispose() {
@@ -50,7 +50,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     try {
       final results = await GameCatalog.search(
         query,
-        consoleAbbreviation: _selectedConsoleAbbr,
+        consoleAbbreviation: _selectedConsole?.abbreviation,
       );
 
       if (mounted) {
@@ -58,8 +58,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
           _results = results;
           _isSearching = false;
           if (results.isEmpty) {
-            _error =
-                'No games found. Try different search terms or remove the console filter.';
+            _error = 'No games found. Try different search terms.';
           }
         });
       }
@@ -79,99 +78,197 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FIND GAME'),
+        title: Text(
+            _selectedConsole == null ? 'ADD GAME' : 'ADD ${_selectedConsole!.abbreviation} GAME'),
         toolbarHeight: 64,
+        actions: [
+          if (_selectedConsole != null)
+            SizedBox(
+              height: 48,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedConsole = null;
+                    _results = [];
+                    _error = null;
+                    _searchController.clear();
+                  });
+                },
+                child: const Text('CHANGE', style: TextStyle(fontSize: 15)),
+              ),
+            ),
+        ],
       ),
-      body: Column(
-        children: [
-          // Search input area
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Console filter
-                SizedBox(
-                  height: 56,
-                  child: DropdownButtonFormField<int?>(
-                    value: _selectedConsoleId,
-                    decoration: const InputDecoration(
-                      labelText: 'Filter by Console (optional)',
-                      prefixIcon: Icon(Icons.videogame_asset),
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                    ),
-                    dropdownColor: AppTheme.cardDark,
-                    isExpanded: true,
-                    menuMaxHeight: 400,
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('All Consoles'),
-                      ),
-                      ...provider.consoles.map((c) {
-                        return DropdownMenuItem(
-                          value: c.id,
-                          child: Text('${c.name} (${c.abbreviation})'),
-                        );
-                      }),
-                    ],
-                    onChanged: (v) {
-                      final console = v != null
-                          ? provider.consoles
-                              .where((c) => c.id == v)
-                              .firstOrNull
-                          : null;
-                      setState(() {
-                        _selectedConsoleId = v;
-                        _selectedConsoleAbbr = console?.abbreviation;
-                      });
-                    },
-                  ),
+      body: _selectedConsole == null
+          ? _buildConsoleSelection(provider)
+          : _buildGameSearch(provider),
+    );
+  }
+
+  /// Step 1: Console selection grid
+  Widget _buildConsoleSelection(GameProvider provider) {
+    // Group consoles by manufacturer for easier browsing
+    final consoles = provider.consoles;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Text(
+            'Select a console:',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 20,
+                  color: AppTheme.textSecondary,
                 ),
-                const SizedBox(height: 12),
-                // Search field with keyboard
-                Row(
-                  children: [
-                    Expanded(
-                      child: TouchKeyboardField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Search game title...',
-                          prefixIcon: Icon(Icons.search),
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 14),
-                        ),
-                        textCapitalization: TextCapitalization.words,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 56,
-                      width: 56,
-                      child: ElevatedButton(
-                        onPressed: _search,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accentGold,
-                          foregroundColor: AppTheme.primaryDark,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Icon(Icons.search, size: 28),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2.2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: consoles.length,
+            itemBuilder: (context, index) {
+              final console = consoles[index];
+              return _buildConsoleButton(console);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsoleButton(GameConsole console) {
+    return Material(
+      color: AppTheme.cardDark,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => setState(() => _selectedConsole = console),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.textSecondary.withOpacity(0.15),
             ),
           ),
-
-          // Results
-          Expanded(
-            child: _buildResults(provider),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                console.abbreviation,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  color: AppTheme.accentGold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                console.name,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  /// Step 2: Game search for selected console
+  Widget _buildGameSearch(GameProvider provider) {
+    return Column(
+      children: [
+        // Search input
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: TouchKeyboardField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search ${_selectedConsole!.abbreviation} games...',
+                    prefixIcon: const Icon(Icons.search),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 56,
+                width: 56,
+                child: ElevatedButton(
+                  onPressed: _search,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentGold,
+                    foregroundColor: AppTheme.primaryDark,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.search, size: 28),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Results
+        Expanded(
+          child: _buildResults(provider),
+        ),
+
+        // Custom add button at bottom
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _addCustom(provider),
+              icon: const Icon(Icons.edit, size: 24),
+              label: const Text('Add Custom Game',
+                  style: TextStyle(fontSize: 16)),
+              style: OutlinedButton.styleFrom(
+                side:
+                    BorderSide(color: AppTheme.accentGold.withOpacity(0.5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _addCustom(GameProvider provider) {
+    // Navigate to form screen with pre-selected console
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CustomGameForm(
+          console: _selectedConsole!,
+        ),
       ),
     );
   }
@@ -185,7 +282,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
             CircularProgressIndicator(color: AppTheme.accentGold),
             SizedBox(height: 16),
             Text('Searching game database...',
-                style: TextStyle(color: AppTheme.textSecondary)),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
           ],
         ),
       );
@@ -203,8 +300,8 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   color: AppTheme.textSecondary.withOpacity(0.4)),
               const SizedBox(height: 16),
               Text(_error!,
-                  style: const TextStyle(
-                      color: AppTheme.textSecondary, fontSize: 16),
+                  style:
+                      const TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                   textAlign: TextAlign.center),
             ],
           ),
@@ -223,10 +320,10 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   size: 64,
                   color: AppTheme.textSecondary.withOpacity(0.4)),
               const SizedBox(height: 16),
-              const Text(
-                'Search for a game to add to your collection.\n'
+              Text(
+                'Search for a ${_selectedConsole!.abbreviation} game to add.\n'
                 'Results include games from all regions.',
-                style: TextStyle(
+                style: const TextStyle(
                     color: AppTheme.textSecondary, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -255,7 +352,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: () => _showAddDialog(catalogGame, provider),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               // Cover art thumbnail
@@ -290,9 +387,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                     Text(
                       catalogGame.title,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontSize: 17, fontWeight: FontWeight.bold),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -301,52 +396,19 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                       Text(
                         '${catalogGame.releaseYear}',
                         style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
-                        ),
+                            color: AppTheme.textSecondary, fontSize: 15),
                       ),
                     if (catalogGame.genre != null)
                       Text(
                         catalogGame.genre!,
                         style: const TextStyle(
-                          color: AppTheme.accentCyan,
-                          fontSize: 13,
-                        ),
-                      ),
-                    const SizedBox(height: 6),
-                    // Platform chips
-                    if (catalogGame.platforms.isNotEmpty)
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: catalogGame.platforms
-                            .take(6)
-                            .map((p) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accentGold
-                                        .withOpacity(0.2),
-                                    borderRadius:
-                                        BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    p,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppTheme.accentGold,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
+                            color: AppTheme.accentCyan, fontSize: 14),
                       ),
                   ],
                 ),
               ),
-              // Add button
               const Icon(Icons.add_circle_outline,
-                  color: AppTheme.accentGold, size: 32),
+                  color: AppTheme.accentGold, size: 36),
             ],
           ),
         ),
@@ -356,28 +418,11 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
   Future<void> _showAddDialog(
       CatalogGame catalogGame, GameProvider provider) async {
-    // Determine which console to pre-select
-    int? preselectedConsoleId = _selectedConsoleId;
-    if (preselectedConsoleId == null && catalogGame.platforms.isNotEmpty) {
-      // Try to match first platform to a console in the database
-      for (final abbr in catalogGame.platforms) {
-        final match = provider.consoles
-            .where((c) => c.abbreviation == abbr)
-            .firstOrNull;
-        if (match != null) {
-          preselectedConsoleId = match.id;
-          break;
-        }
-      }
-    }
-
-    // Show dialog to pick region and console (if multiple platforms)
     final result = await showDialog<_AddGameResult>(
       context: context,
       builder: (ctx) => _AddGameDialog(
         catalogGame: catalogGame,
-        consoles: provider.consoles,
-        preselectedConsoleId: preselectedConsoleId,
+        console: _selectedConsole!,
       ),
     );
 
@@ -413,10 +458,33 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       }
     }
 
-    // Add the game
+    // Also try LibRetro boxart if no cover was downloaded
+    if (coverPath == null && _selectedConsole != null) {
+      final lrUrl = GameCatalog.getLibRetroBoxartUrl(
+          catalogGame.title, _selectedConsole!.abbreviation);
+      if (lrUrl != null) {
+        try {
+          final response = await http.get(Uri.parse(lrUrl)).timeout(
+            const Duration(seconds: 10),
+          );
+          if (response.statusCode == 200) {
+            final appDir = await getApplicationDocumentsDirectory();
+            final coverDir = Directory(p.join(appDir.path, 'covers'));
+            if (!await coverDir.exists()) {
+              await coverDir.create(recursive: true);
+            }
+            final destPath = p.join(coverDir.path,
+                '${DateTime.now().millisecondsSinceEpoch}.png');
+            await File(destPath).writeAsBytes(response.bodyBytes);
+            coverPath = destPath;
+          }
+        } catch (_) {}
+      }
+    }
+
     final game = Game(
       title: catalogGame.title,
-      consoleId: result.consoleId,
+      consoleId: _selectedConsole!.id!,
       genre: catalogGame.genre ?? 'Action',
       minPlayers: catalogGame.minPlayers ?? 1,
       maxPlayers: catalogGame.maxPlayers ?? 1,
@@ -440,21 +508,17 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 }
 
 class _AddGameResult {
-  final int consoleId;
   final String region;
-
-  const _AddGameResult({required this.consoleId, required this.region});
+  const _AddGameResult({required this.region});
 }
 
 class _AddGameDialog extends StatefulWidget {
   final CatalogGame catalogGame;
-  final List<GameConsole> consoles;
-  final int? preselectedConsoleId;
+  final GameConsole console;
 
   const _AddGameDialog({
     required this.catalogGame,
-    required this.consoles,
-    this.preselectedConsoleId,
+    required this.console,
   });
 
   @override
@@ -462,25 +526,16 @@ class _AddGameDialog extends StatefulWidget {
 }
 
 class _AddGameDialogState extends State<_AddGameDialog> {
-  late int? _consoleId;
   String _region = 'NTSC-U';
 
   static const _allRegions = [
-    'NTSC-U',
-    'NTSC-J',
-    'PAL',
-    'NTSC-U/C',
-    'NTSC-K',
-    'PAL-A',
-    'PAL-B',
-    'Region Free',
+    'NTSC-U', 'NTSC-J', 'PAL', 'NTSC-U/C', 'NTSC-K',
+    'PAL-A', 'PAL-B', 'Region Free',
   ];
 
   @override
   void initState() {
     super.initState();
-    _consoleId = widget.preselectedConsoleId;
-    // Pre-select first inferred region
     if (widget.catalogGame.regions.isNotEmpty) {
       _region = widget.catalogGame.regions.first;
     }
@@ -492,36 +547,35 @@ class _AddGameDialogState extends State<_AddGameDialog> {
       backgroundColor: AppTheme.surfaceDark,
       title: Text(
         widget.catalogGame.title,
-        style: const TextStyle(fontSize: 18),
+        style: const TextStyle(fontSize: 20),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Console picker
-          DropdownButtonFormField<int>(
-            value: _consoleId,
-            decoration: const InputDecoration(
-              labelText: 'Console',
-              prefixIcon: Icon(Icons.videogame_asset),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          // Show console
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.accentGold.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
-            dropdownColor: AppTheme.cardDark,
-            isExpanded: true,
-            menuMaxHeight: 300,
-            items: widget.consoles.map((c) {
-              return DropdownMenuItem(
-                value: c.id,
-                child: Text('${c.name} (${c.abbreviation})',
-                    style: const TextStyle(fontSize: 14)),
-              );
-            }).toList(),
-            onChanged: (v) => setState(() => _consoleId = v),
-            validator: (v) => v == null ? 'Required' : null,
+            child: Row(
+              children: [
+                const Icon(Icons.videogame_asset,
+                    color: AppTheme.accentGold, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  '${widget.console.name} (${widget.console.abbreviation})',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           // Region picker
           DropdownButtonFormField<String>(
             value: _region,
@@ -529,7 +583,7 @@ class _AddGameDialogState extends State<_AddGameDialog> {
               labelText: 'Region',
               prefixIcon: Icon(Icons.language),
               contentPadding:
-                  EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             ),
             dropdownColor: AppTheme.cardDark,
             isExpanded: true,
@@ -562,7 +616,7 @@ class _AddGameDialogState extends State<_AddGameDialog> {
               }
               return DropdownMenuItem(
                 value: r,
-                child: Text(label, style: const TextStyle(fontSize: 14)),
+                child: Text(label, style: const TextStyle(fontSize: 15)),
               );
             }).toList(),
             onChanged: (v) => setState(() => _region = v ?? 'NTSC-U'),
@@ -571,29 +625,238 @@ class _AddGameDialogState extends State<_AddGameDialog> {
       ),
       actions: [
         SizedBox(
-          height: 48,
+          height: 52,
           child: TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('CANCEL', style: TextStyle(fontSize: 16)),
           ),
         ),
         SizedBox(
-          height: 48,
+          height: 52,
           child: ElevatedButton(
-            onPressed: _consoleId != null
-                ? () => Navigator.pop(
-                    context,
-                    _AddGameResult(
-                        consoleId: _consoleId!, region: _region))
-                : null,
+            onPressed: () => Navigator.pop(
+                context, _AddGameResult(region: _region)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.accentGold,
               foregroundColor: AppTheme.primaryDark,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
             ),
             child: const Text('ADD', style: TextStyle(fontSize: 16)),
           ),
         ),
       ],
     );
+  }
+}
+
+/// Simple custom game form that pre-selects the console.
+class _CustomGameForm extends StatefulWidget {
+  final GameConsole console;
+  const _CustomGameForm({required this.console});
+
+  @override
+  State<_CustomGameForm> createState() => _CustomGameFormState();
+}
+
+class _CustomGameFormState extends State<_CustomGameForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _storageController = TextEditingController();
+  final _roomController = TextEditingController();
+  String _genre = 'Action';
+  String _region = 'NTSC-U';
+  int _minPlayers = 1;
+  int _maxPlayers = 1;
+
+  static const _genres = [
+    'Action', 'Action-Adventure', 'Beat \'em Up', 'Educational', 'Fighting',
+    'Horror', 'Music/Rhythm', 'Platformer', 'Puzzle', 'RPG', 'Racing',
+    'Run and Gun', 'Shooter', 'Simulation', 'Sports', 'Stealth',
+    'Strategy', 'Survival',
+  ];
+
+  static const _regions = [
+    'NTSC-U', 'NTSC-J', 'PAL', 'NTSC-U/C', 'NTSC-K',
+    'PAL-A', 'PAL-B', 'Region Free',
+  ];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _storageController.dispose();
+    _roomController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('ADD ${widget.console.abbreviation} GAME'),
+        toolbarHeight: 64,
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Console display
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.accentGold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppTheme.accentGold.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.videogame_asset,
+                      color: AppTheme.accentGold, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${widget.console.name} (${widget.console.abbreviation})',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Title
+            TouchKeyboardField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Game Title',
+                prefixIcon: Icon(Icons.title),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              ),
+              textCapitalization: TextCapitalization.words,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Title is required' : null,
+            ),
+            const SizedBox(height: 20),
+
+            // Region
+            DropdownButtonFormField<String>(
+              value: _region,
+              decoration: const InputDecoration(
+                labelText: 'Region',
+                prefixIcon: Icon(Icons.language),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              ),
+              dropdownColor: AppTheme.cardDark,
+              isExpanded: true,
+              items: _regions.map((r) => DropdownMenuItem(
+                    value: r,
+                    child: Text(r, style: const TextStyle(fontSize: 15)),
+                  )).toList(),
+              onChanged: (v) => setState(() => _region = v ?? 'NTSC-U'),
+            ),
+            const SizedBox(height: 20),
+
+            // Genre
+            DropdownButtonFormField<String>(
+              value: _genre,
+              decoration: const InputDecoration(
+                labelText: 'Genre',
+                prefixIcon: Icon(Icons.category),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              ),
+              dropdownColor: AppTheme.cardDark,
+              isExpanded: true,
+              menuMaxHeight: 400,
+              items: _genres.map((g) => DropdownMenuItem(
+                    value: g,
+                    child: Text(g, style: const TextStyle(fontSize: 15)),
+                  )).toList(),
+              onChanged: (v) => setState(() => _genre = v ?? 'Action'),
+            ),
+            const SizedBox(height: 20),
+
+            // Room
+            TouchKeyboardField(
+              controller: _roomController,
+              decoration: const InputDecoration(
+                labelText: 'Room (optional)',
+                prefixIcon: Icon(Icons.room),
+                hintText: 'e.g., Living Room',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Storage
+            TouchKeyboardField(
+              controller: _storageController,
+              decoration: const InputDecoration(
+                labelText: 'Shelf / Drawer / Box (optional)',
+                prefixIcon: Icon(Icons.inventory_2),
+                hintText: 'e.g., Shelf A',
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Save
+            SizedBox(
+              height: 60,
+              child: ElevatedButton(
+                onPressed: _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentGold,
+                  foregroundColor: AppTheme.primaryDark,
+                  textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('ADD TO COLLECTION'),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final provider = context.read<GameProvider>();
+    final game = Game(
+      title: _titleController.text.trim(),
+      consoleId: widget.console.id!,
+      genre: _genre,
+      minPlayers: _minPlayers,
+      maxPlayers: _maxPlayers,
+      region: _region,
+      room: _roomController.text.trim().isEmpty
+          ? null
+          : _roomController.text.trim(),
+      storageLocation: _storageController.text.trim(),
+    );
+
+    await provider.addGame(game);
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${game.title} added!'),
+          backgroundColor: AppTheme.accentGold.withOpacity(0.9),
+        ),
+      );
+    }
   }
 }

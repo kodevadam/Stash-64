@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../data/game_catalog.dart';
 import '../theme/app_theme.dart';
 import 'touch_keyboard.dart';
 
@@ -164,51 +165,39 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
   }
 
   /// Try to find boxart from LibRetro thumbnails (GitHub-hosted, free).
+  /// Uses the same source as EmuDeck for game art.
   Future<List<_CoverResult>> _searchLibreRetro(
       String query, String? consoleName) async {
     final results = <_CoverResult>[];
-
-    // LibRetro thumbnail naming convention uses the console name in the URL
-    // Map console names to LibRetro system names
-    const consoleToLibRetro = {
-      'Nintendo Entertainment System': 'Nintendo - Nintendo Entertainment System',
-      'NES': 'Nintendo - Nintendo Entertainment System',
-      'Famicom': 'Nintendo - Nintendo Entertainment System',
-      'Super Nintendo': 'Nintendo - Super Nintendo Entertainment System',
-      'SNES': 'Nintendo - Super Nintendo Entertainment System',
-      'Nintendo 64': 'Nintendo - Nintendo 64',
-      'N64': 'Nintendo - Nintendo 64',
-      'Nintendo GameCube': 'Nintendo - GameCube',
-      'Game Boy': 'Nintendo - Game Boy',
-      'Game Boy Color': 'Nintendo - Game Boy Color',
-      'Game Boy Advance': 'Nintendo - Game Boy Advance',
-      'Sega Genesis': 'Sega - Mega Drive - Genesis',
-      'Sega Mega Drive': 'Sega - Mega Drive - Genesis',
-      'Sega Master System': 'Sega - Master System - Mark III',
-      'Sega Saturn': 'Sega - Saturn',
-      'Sega Dreamcast': 'Sega - Dreamcast',
-      'Sega Game Gear': 'Sega - Game Gear',
-      'PlayStation': 'Sony - PlayStation',
-      'PS1': 'Sony - PlayStation',
-      'PlayStation 2': 'Sony - PlayStation 2',
-      'PS2': 'Sony - PlayStation 2',
-      'Atari 2600': 'Atari - 2600',
-      'Atari 7800': 'Atari - 7800',
-      'TurboGrafx-16': 'NEC - PC Engine - TurboGrafx 16',
-      'PC Engine': 'NEC - PC Engine - TurboGrafx 16',
-      'Neo Geo AES': 'SNK - Neo Geo',
-    };
-
     if (consoleName == null) return results;
 
-    final system = consoleToLibRetro[consoleName];
-    if (system == null) return results;
+    // Try to get LibRetro URL using the centralized mapping
+    final boxartUrl = GameCatalog.getLibRetroBoxartUrl(query, consoleName);
+    if (boxartUrl == null) {
+      // Also try with console name as abbreviation
+      final system = GameCatalog.getLibRetroSystem(consoleName);
+      if (system == null) return results;
 
-    // LibRetro uses exact game names as filenames
-    // Try the exact title first
-    final safeName = query.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
-    final boxartUrl =
-        'https://thumbnails.libretro.com/${Uri.encodeComponent(system)}/Named_Boxarts/${Uri.encodeComponent(safeName)}.png';
+      final safeName = query.replaceAll(RegExp(r'[<>:"/\\|?*&]'), '_');
+      final url = 'https://thumbnails.libretro.com/'
+          '${Uri.encodeComponent(system)}/Named_Boxarts/'
+          '${Uri.encodeComponent(safeName)}.png';
+
+      try {
+        final response = await http.head(Uri.parse(url)).timeout(
+          const Duration(seconds: 6),
+        );
+        if (response.statusCode == 200) {
+          results.add(_CoverResult(
+            title: '$query (Box Art)',
+            imageUrl: url,
+            source: 'LibRetro',
+            platforms: [consoleName],
+          ));
+        }
+      } catch (_) {}
+      return results;
+    }
 
     try {
       final response = await http.head(Uri.parse(boxartUrl)).timeout(
@@ -223,9 +212,7 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
           platforms: [consoleName],
         ));
       }
-    } catch (_) {
-      // Not found
-    }
+    } catch (_) {}
 
     return results;
   }

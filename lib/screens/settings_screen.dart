@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/import_export_helper.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/kiosk_wrapper.dart';
 import 'console_management_screen.dart';
@@ -15,6 +16,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
+    final settings = context.watch<SettingsProvider>();
     final kiosk = KioskWrapper.of(context);
 
     return Scaffold(
@@ -130,6 +132,83 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
           ],
+
+          // UI Scale
+          _buildSectionHeader(context, 'DISPLAY'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.text_fields,
+                          color: AppTheme.accentGold, size: 24),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text('UI Scale',
+                            style: TextStyle(fontSize: 16)),
+                      ),
+                      Text(
+                        '${(settings.uiScale * 100).round()}%',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.accentGold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 14),
+                      trackHeight: 6,
+                      activeTrackColor: AppTheme.accentGold,
+                      inactiveTrackColor:
+                          AppTheme.textSecondary.withOpacity(0.2),
+                      thumbColor: AppTheme.accentGold,
+                    ),
+                    child: Slider(
+                      value: settings.uiScale,
+                      min: SettingsProvider.minScale,
+                      max: SettingsProvider.maxScale,
+                      divisions: 16,
+                      onChanged: (v) => settings.setUiScale(v),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                          '${(SettingsProvider.minScale * 100).round()}%',
+                          style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12)),
+                      SizedBox(
+                        height: 36,
+                        child: TextButton(
+                          onPressed: () => settings
+                              .setUiScale(SettingsProvider.defaultScale),
+                          child: const Text('Reset',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                      Text(
+                          '${(SettingsProvider.maxScale * 100).round()}%',
+                          style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
 
           // About
           _buildSectionHeader(context, 'ABOUT'),

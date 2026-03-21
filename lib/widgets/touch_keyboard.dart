@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// An on-screen touch keyboard that can be shown below text fields.
-/// Supports letters, numbers, symbols, backspace, space, and enter.
+/// A full-width on-screen touch keyboard designed for kiosk/touchscreen use.
+/// Keys expand to fill available width. Supports letters, numbers, symbols,
+/// shift, backspace (with repeat), space, and done.
 class TouchKeyboard extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
@@ -22,7 +25,8 @@ class TouchKeyboard extends StatefulWidget {
 
 class _TouchKeyboardState extends State<TouchKeyboard> {
   bool _showSymbols = false;
-  bool _capsLock = false;
+  bool _shifted = true; // Start shifted for first letter capitalization
+  Timer? _backspaceTimer;
 
   static const _letterRows = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -32,9 +36,15 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
 
   static const _symbolRows = [
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
-    ['-', '/', ':', ';', '(', ')', '\$', '&', '@', '"'],
-    ['.', ',', '?', '!', "'", '#', '%', '+', '='],
+    ['-', '/', ':', ';', '(', ')', '&', '@', '"', "'"],
+    ['.', ',', '?', '!', '#', '%', '+', '=', '_'],
   ];
+
+  @override
+  void dispose() {
+    _backspaceTimer?.cancel();
+    super.dispose();
+  }
 
   void _onKey(String key) {
     final text = widget.controller.text;
@@ -44,7 +54,6 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
     int newCursorPos;
 
     if (selection.isValid && selection.start != selection.end) {
-      // Replace selection
       newText = text.replaceRange(selection.start, selection.end, key);
       newCursorPos = selection.start + key.length;
     } else {
@@ -55,6 +64,11 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
 
     widget.controller.text = newText;
     widget.controller.selection = TextSelection.collapsed(offset: newCursorPos);
+
+    // Auto-unshift after typing a letter (like a phone keyboard)
+    if (_shifted && !_showSymbols) {
+      setState(() => _shifted = false);
+    }
   }
 
   void _onBackspace() {
@@ -78,137 +92,252 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
     }
   }
 
+  void _startBackspaceRepeat() {
+    _onBackspace();
+    _backspaceTimer = Timer(const Duration(milliseconds: 400), () {
+      _backspaceTimer = Timer.periodic(
+        const Duration(milliseconds: 60),
+        (_) => _onBackspace(),
+      );
+    });
+  }
+
+  void _stopBackspaceRepeat() {
+    _backspaceTimer?.cancel();
+    _backspaceTimer = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _showSymbols ? _symbolRows : _letterRows;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Calculate key size based on screen width (10 keys per row max)
+    final keyWidth = (screenWidth - 32) / 10; // 16px padding each side
+    final keyHeight = keyWidth * 1.1; // Slightly taller than wide
 
     return Container(
-      color: AppTheme.surfaceDark,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1528),
+        border: Border(
+          top: BorderSide(color: AppTheme.textSecondary.withOpacity(0.2)),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Row 1
-          _buildRow(rows[0]),
-          const SizedBox(height: 6),
-          // Row 2
-          _buildRow(rows[1]),
-          const SizedBox(height: 6),
-          // Row 3 with shift / backspace
-          _buildRow3(rows[2]),
-          const SizedBox(height: 6),
-          // Bottom row: symbols toggle, space, done
-          _buildBottomRow(),
+          _buildRow(rows[0], keyWidth, keyHeight),
+          const SizedBox(height: 8),
+          _buildRow(rows[1], keyWidth, keyHeight),
+          const SizedBox(height: 8),
+          _buildRow3(rows[2], keyWidth, keyHeight),
+          const SizedBox(height: 8),
+          _buildBottomRow(keyWidth, keyHeight),
         ],
       ),
     );
   }
 
-  Widget _buildRow(List<String> keys) {
+  Widget _buildRow(List<String> keys, double keyWidth, double keyHeight) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: keys
-          .map((k) => _buildKey(
-                _capsLock || _showSymbols ? k : k.toLowerCase(),
-                onTap: () =>
-                    _onKey(_capsLock || _showSymbols ? k : k.toLowerCase()),
-              ))
-          .toList(),
+      children: keys.map((k) {
+        final display = _shifted || _showSymbols ? k : k.toLowerCase();
+        return _KeyButton(
+          label: display,
+          width: keyWidth,
+          height: keyHeight,
+          onTap: () => _onKey(display),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildRow3(List<String> keys) {
+  Widget _buildRow3(List<String> keys, double keyWidth, double keyHeight) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Caps lock / shift
+        // Shift key
         if (!_showSymbols)
-          _buildKey(
-            _capsLock ? 'CAPS' : 'caps',
-            width: 56,
-            color: _capsLock ? AppTheme.accentGold : null,
-            onTap: () => setState(() => _capsLock = !_capsLock),
+          _KeyButton(
+            icon: _shifted ? Icons.keyboard_capslock : Icons.keyboard_arrow_up,
+            width: keyWidth * 1.5,
+            height: keyHeight,
+            color: _shifted ? AppTheme.accentGold.withOpacity(0.3) : null,
+            iconColor: _shifted ? AppTheme.accentGold : null,
+            onTap: () => setState(() => _shifted = !_shifted),
           ),
-        ...keys.map((k) => _buildKey(
-              _capsLock || _showSymbols ? k : k.toLowerCase(),
-              onTap: () =>
-                  _onKey(_capsLock || _showSymbols ? k : k.toLowerCase()),
-            )),
-        // Backspace
-        _buildKey(
-          '',
-          width: 56,
+        ...keys.map((k) {
+          final display = _shifted || _showSymbols ? k : k.toLowerCase();
+          return _KeyButton(
+            label: display,
+            width: keyWidth,
+            height: keyHeight,
+            onTap: () => _onKey(display),
+          );
+        }),
+        // Backspace with hold-to-repeat
+        _KeyButton(
           icon: Icons.backspace_outlined,
-          onTap: _onBackspace,
-          onLongPress: () {
-            widget.controller.clear();
-          },
+          width: keyWidth * 1.5,
+          height: keyHeight,
+          onTapDown: _startBackspaceRepeat,
+          onTapUp: _stopBackspaceRepeat,
+          onTapCancel: _stopBackspaceRepeat,
         ),
       ],
     );
   }
 
-  Widget _buildBottomRow() {
+  Widget _buildBottomRow(double keyWidth, double keyHeight) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // Symbol toggle
-        _buildKey(
-          _showSymbols ? 'ABC' : '123',
-          width: 64,
-          onTap: () => setState(() => _showSymbols = !_showSymbols),
+        _KeyButton(
+          label: _showSymbols ? 'ABC' : '?123',
+          width: keyWidth * 1.5,
+          height: keyHeight,
+          fontSize: 14,
+          onTap: () => setState(() {
+            _showSymbols = !_showSymbols;
+            if (!_showSymbols) _shifted = false;
+          }),
         ),
         // Space bar
-        _buildKey(
-          'space',
-          width: 200,
+        _KeyButton(
+          label: '',
+          icon: Icons.space_bar,
+          width: keyWidth * 5,
+          height: keyHeight,
           onTap: () => _onKey(' '),
         ),
+        // Period (quick access)
+        _KeyButton(
+          label: '.',
+          width: keyWidth,
+          height: keyHeight,
+          onTap: () => _onKey('.'),
+        ),
         // Done
-        _buildKey(
-          'Done',
-          width: 64,
+        _KeyButton(
+          label: 'Done',
+          width: keyWidth * 2,
+          height: keyHeight,
           color: AppTheme.accentGold,
           textColor: AppTheme.primaryDark,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
           onTap: widget.onDone,
         ),
       ],
     );
   }
+}
 
-  Widget _buildKey(
-    String label, {
-    double width = 36,
-    IconData? icon,
-    Color? color,
-    Color? textColor,
-    VoidCallback? onTap,
-    VoidCallback? onLongPress,
-  }) {
+/// Individual key button with press animation and visual feedback.
+class _KeyButton extends StatefulWidget {
+  final String? label;
+  final IconData? icon;
+  final double width;
+  final double height;
+  final Color? color;
+  final Color? textColor;
+  final Color? iconColor;
+  final double? fontSize;
+  final FontWeight? fontWeight;
+  final VoidCallback? onTap;
+  final VoidCallback? onTapDown;
+  final VoidCallback? onTapUp;
+  final VoidCallback? onTapCancel;
+
+  const _KeyButton({
+    this.label,
+    this.icon,
+    required this.width,
+    required this.height,
+    this.color,
+    this.textColor,
+    this.iconColor,
+    this.fontSize,
+    this.fontWeight,
+    this.onTap,
+    this.onTapDown,
+    this.onTapUp,
+    this.onTapCancel,
+  });
+
+  @override
+  State<_KeyButton> createState() => _KeyButtonState();
+}
+
+class _KeyButtonState extends State<_KeyButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.color ?? AppTheme.cardDark;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: SizedBox(
-        width: width,
-        height: 48,
-        child: Material(
-          color: color ?? AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(6),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: onTap,
-            onLongPress: onLongPress,
-            child: Center(
-              child: icon != null
-                  ? Icon(icon, size: 20, color: textColor ?? AppTheme.textPrimary)
-                  : Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: label.length > 3 ? 12 : 16,
-                        fontWeight: FontWeight.w500,
-                        color: textColor ?? AppTheme.textPrimary,
-                      ),
-                    ),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: GestureDetector(
+        onTapDown: (_) {
+          setState(() => _pressed = true);
+          widget.onTapDown?.call();
+        },
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onTapUp?.call();
+          if (widget.onTapDown == null) {
+            widget.onTap?.call();
+          }
+        },
+        onTapCancel: () {
+          setState(() => _pressed = false);
+          widget.onTapCancel?.call();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            color: _pressed
+                ? (widget.color ?? AppTheme.accentGold).withOpacity(0.5)
+                : bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _pressed
+                  ? AppTheme.accentGold.withOpacity(0.6)
+                  : AppTheme.textSecondary.withOpacity(0.15),
+              width: _pressed ? 1.5 : 1,
             ),
+            boxShadow: _pressed
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      offset: const Offset(0, 2),
+                      blurRadius: 1,
+                    ),
+                  ],
+          ),
+          child: Center(
+            child: widget.icon != null && (widget.label == null || widget.label!.isEmpty)
+                ? Icon(
+                    widget.icon,
+                    size: widget.height * 0.4,
+                    color: widget.iconColor ??
+                        widget.textColor ??
+                        AppTheme.textPrimary,
+                  )
+                : Text(
+                    widget.label ?? '',
+                    style: TextStyle(
+                      fontSize: widget.fontSize ?? widget.height * 0.38,
+                      fontWeight: widget.fontWeight ?? FontWeight.w500,
+                      color: widget.textColor ?? AppTheme.textPrimary,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -217,7 +346,7 @@ class _TouchKeyboardState extends State<TouchKeyboard> {
 }
 
 /// A helper widget that wraps a TextField with an optional on-screen keyboard.
-/// Shows a small keyboard icon button; tapping it toggles the keyboard below.
+/// Tapping the keyboard icon toggles the keyboard below the field.
 class TouchKeyboardField extends StatefulWidget {
   final TextEditingController controller;
   final InputDecoration? decoration;
@@ -252,23 +381,26 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
 
   @override
   Widget build(BuildContext context) {
-    // Add keyboard toggle icon to decoration
     final baseDecoration = widget.decoration ?? const InputDecoration();
     final decoration = baseDecoration.copyWith(
       suffixIcon: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (baseDecoration.suffixIcon != null) baseDecoration.suffixIcon!,
-          IconButton(
-            icon: Icon(
-              _showKeyboard ? Icons.keyboard_hide : Icons.keyboard,
-              color: _showKeyboard
-                  ? AppTheme.accentGold
-                  : AppTheme.textSecondary,
-              size: 22,
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: IconButton(
+              icon: Icon(
+                _showKeyboard ? Icons.keyboard_hide : Icons.keyboard,
+                color: _showKeyboard
+                    ? AppTheme.accentGold
+                    : AppTheme.textSecondary,
+                size: 24,
+              ),
+              onPressed: () => setState(() => _showKeyboard = !_showKeyboard),
+              tooltip: _showKeyboard ? 'Hide keyboard' : 'Show keyboard',
             ),
-            onPressed: () => setState(() => _showKeyboard = !_showKeyboard),
-            tooltip: _showKeyboard ? 'Hide keyboard' : 'Show keyboard',
           ),
         ],
       ),
@@ -289,7 +421,6 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
           showCursor: true,
           onTap: () {
             if (!_showKeyboard) return;
-            // Keep focus when using touch keyboard
             _focusNode.requestFocus();
           },
         ),

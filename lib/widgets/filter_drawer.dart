@@ -14,100 +14,128 @@ class FilterDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
     final filter = provider.filterState;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Use 80% of screen width on small screens, max 400
+    final drawerWidth = (screenWidth * 0.85).clamp(320.0, 420.0);
 
-    return Drawer(
-      backgroundColor: AppTheme.surfaceDark,
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  const Icon(Icons.tune, color: AppTheme.accentGold),
-                  const SizedBox(width: 8),
-                  Text(
-                    'FILTERS',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontFamily: 'monospace',
-                          fontSize: 20,
-                          letterSpacing: 2,
-                        ),
-                  ),
-                  const Spacer(),
-                  if (filter.hasActiveFilters)
-                    TextButton(
-                      onPressed: () => provider.clearFilters(),
-                      child: const Text('CLEAR ALL'),
+    return SizedBox(
+      width: drawerWidth,
+      child: Drawer(
+        backgroundColor: AppTheme.surfaceDark,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune, color: AppTheme.accentGold, size: 28),
+                    const SizedBox(width: 10),
+                    Text(
+                      'FILTERS',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontFamily: 'monospace',
+                            fontSize: 24,
+                            letterSpacing: 2,
+                          ),
                     ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Game count
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '${provider.games.length} of ${provider.totalGameCount} games',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-
-            // Console filter
-            _buildSectionHeader(context, 'Console'),
-            _buildConsoleChips(context, provider, filter),
-            const Divider(),
-
-            // Genre filter
-            _buildSectionHeader(context, 'Genre'),
-            _buildGenreChips(context, provider, filter),
-            const Divider(),
-
-            // Player count filter
-            _buildSectionHeader(context, 'Players'),
-            _buildPlayerChips(context, provider, filter),
-            const Divider(),
-
-            // Storage location filter
-            _buildSectionHeader(context, 'Storage Location'),
-            _buildStorageChips(context, provider, filter),
-            const Divider(),
-
-            // Favorites toggle
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                height: AppTheme.touchTargetSize,
-                child: FilterChip(
-                  label: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star, size: 16),
-                      SizedBox(width: 6),
-                      Text('Favorites Only'),
-                    ],
-                  ),
-                  selected: filter.favoritesOnly == true,
-                  onSelected: (selected) {
-                    provider.setFilter(filter.copyWith(
-                      favoritesOnly: selected ? true : null,
-                      clearFavorites: !selected,
-                    ));
-                  },
+                    const Spacer(),
+                    if (filter.hasActiveFilters)
+                      SizedBox(
+                        height: 48,
+                        child: TextButton(
+                          onPressed: () => provider.clearFilters(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                          child: const Text('CLEAR ALL',
+                              style: TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-            const Divider(),
+              const SizedBox(height: 12),
 
-            // Sort options
-            _buildSectionHeader(context, 'Sort By'),
-            _buildSortOptions(context, provider, filter),
-          ],
+              // Game count
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '${provider.games.length} of ${provider.totalGameCount} games',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+
+              // Console filter
+              _buildSectionHeader(context, 'Console'),
+              _buildConsoleChips(context, provider, filter),
+              const SizedBox(height: 8),
+              const Divider(),
+
+              // Genre filter
+              _buildSectionHeader(context, 'Genre'),
+              _buildGenreChips(context, provider, filter),
+              const SizedBox(height: 8),
+              const Divider(),
+
+              // Player count filter
+              _buildSectionHeader(context, 'Players'),
+              _buildPlayerChips(context, provider, filter),
+              const SizedBox(height: 8),
+              const Divider(),
+
+              // Storage location filter
+              _buildSectionHeader(context, 'Storage Location'),
+              _buildStorageChips(context, provider, filter),
+              const SizedBox(height: 8),
+              const Divider(),
+
+              // Favorites toggle
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: SizedBox(
+                  height: 56,
+                  child: FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star,
+                            size: 22,
+                            color: filter.favoritesOnly == true
+                                ? AppTheme.accentGold
+                                : AppTheme.textSecondary),
+                        const SizedBox(width: 8),
+                        const Text('Favorites Only',
+                            style: TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                    selected: filter.favoritesOnly == true,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    onSelected: (selected) {
+                      provider.setFilter(filter.copyWith(
+                        favoritesOnly: selected ? true : null,
+                        clearFavorites: !selected,
+                      ));
+                    },
+                  ),
+                ),
+              ),
+              const Divider(),
+
+              // Sort options
+              _buildSectionHeader(context, 'Sort By'),
+              _buildSortOptions(context, provider, filter),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -115,10 +143,13 @@ class FilterDrawer extends StatelessWidget {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.labelLarge,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -126,21 +157,27 @@ class FilterDrawer extends StatelessWidget {
   Widget _buildConsoleChips(
       BuildContext context, GameProvider provider, FilterState filter) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: provider.consoles.map((console) {
           final isSelected = filter.consoleId == console.id;
-          return FilterChip(
-            label: Text(console.abbreviation),
-            selected: isSelected,
-            onSelected: (selected) {
-              provider.setFilter(filter.copyWith(
-                consoleId: selected ? console.id : null,
-                clearConsole: !selected,
-              ));
-            },
+          return SizedBox(
+            height: 48,
+            child: FilterChip(
+              label: Text(console.abbreviation,
+                  style: const TextStyle(fontSize: 15)),
+              selected: isSelected,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              onSelected: (selected) {
+                provider.setFilter(filter.copyWith(
+                  consoleId: selected ? console.id : null,
+                  clearConsole: !selected,
+                ));
+              },
+            ),
           );
         }).toList(),
       ),
@@ -150,21 +187,26 @@ class FilterDrawer extends StatelessWidget {
   Widget _buildGenreChips(
       BuildContext context, GameProvider provider, FilterState filter) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: provider.genres.map((genre) {
           final isSelected = filter.genre == genre;
-          return FilterChip(
-            label: Text(genre),
-            selected: isSelected,
-            onSelected: (selected) {
-              provider.setFilter(filter.copyWith(
-                genre: selected ? genre : null,
-                clearGenre: !selected,
-              ));
-            },
+          return SizedBox(
+            height: 48,
+            child: FilterChip(
+              label: Text(genre, style: const TextStyle(fontSize: 15)),
+              selected: isSelected,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              onSelected: (selected) {
+                provider.setFilter(filter.copyWith(
+                  genre: selected ? genre : null,
+                  clearGenre: !selected,
+                ));
+              },
+            ),
           );
         }).toList(),
       ),
@@ -174,21 +216,28 @@ class FilterDrawer extends StatelessWidget {
   Widget _buildPlayerChips(
       BuildContext context, GameProvider provider, FilterState filter) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: [1, 2, 3, 4].map((count) {
           final isSelected = filter.playerCount == count;
-          return FilterChip(
-            label: Text('$count${count == 4 ? '+' : ''} player${count > 1 ? 's' : ''}'),
-            selected: isSelected,
-            onSelected: (selected) {
-              provider.setFilter(filter.copyWith(
-                playerCount: selected ? count : null,
-                clearPlayerCount: !selected,
-              ));
-            },
+          return SizedBox(
+            height: 48,
+            child: FilterChip(
+              label: Text(
+                  '$count${count == 4 ? '+' : ''} player${count > 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 15)),
+              selected: isSelected,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              onSelected: (selected) {
+                provider.setFilter(filter.copyWith(
+                  playerCount: selected ? count : null,
+                  clearPlayerCount: !selected,
+                ));
+              },
+            ),
           );
         }).toList(),
       ),
@@ -198,21 +247,26 @@ class FilterDrawer extends StatelessWidget {
   Widget _buildStorageChips(
       BuildContext context, GameProvider provider, FilterState filter) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: provider.storageLocations.map((location) {
           final isSelected = filter.storageLocation == location;
-          return FilterChip(
-            label: Text(location),
-            selected: isSelected,
-            onSelected: (selected) {
-              provider.setFilter(filter.copyWith(
-                storageLocation: selected ? location : null,
-                clearStorageLocation: !selected,
-              ));
-            },
+          return SizedBox(
+            height: 48,
+            child: FilterChip(
+              label: Text(location, style: const TextStyle(fontSize: 15)),
+              selected: isSelected,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              onSelected: (selected) {
+                provider.setFilter(filter.copyWith(
+                  storageLocation: selected ? location : null,
+                  clearStorageLocation: !selected,
+                ));
+              },
+            ),
           );
         }).toList(),
       ),
@@ -230,42 +284,53 @@ class FilterDrawer extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         children: sortOptions.entries.map((entry) {
           final isSelected = filter.sortField == entry.key;
-          return SizedBox(
-            height: AppTheme.touchTargetSize,
-            child: ListTile(
-              dense: true,
-              title: Text(entry.value),
-              trailing: isSelected
-                  ? Icon(
-                      filter.sortAscending
-                          ? Icons.arrow_upward
-                          : Icons.arrow_downward,
-                      color: AppTheme.accentGold,
-                      size: 18,
-                    )
-                  : null,
-              selected: isSelected,
-              selectedTileColor: AppTheme.accentGold.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: SizedBox(
+              height: 60,
+              child: ListTile(
+                title: Text(entry.value,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? AppTheme.accentGold
+                          : AppTheme.textPrimary,
+                    )),
+                trailing: isSelected
+                    ? Icon(
+                        filter.sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        color: AppTheme.accentGold,
+                        size: 24,
+                      )
+                    : null,
+                selected: isSelected,
+                selectedTileColor: AppTheme.accentGold.withOpacity(0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                onTap: () {
+                  if (isSelected) {
+                    provider.setFilter(filter.copyWith(
+                      sortAscending: !filter.sortAscending,
+                    ));
+                  } else {
+                    provider.setFilter(filter.copyWith(
+                      sortField: entry.key,
+                      sortAscending: true,
+                    ));
+                  }
+                },
               ),
-              onTap: () {
-                if (isSelected) {
-                  // Toggle sort direction
-                  provider.setFilter(filter.copyWith(
-                    sortAscending: !filter.sortAscending,
-                  ));
-                } else {
-                  provider.setFilter(filter.copyWith(
-                    sortField: entry.key,
-                    sortAscending: true,
-                  ));
-                }
-              },
             ),
           );
         }).toList(),
