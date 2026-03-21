@@ -391,7 +391,18 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
   bool _lastInteractionWasTouch = false;
 
   @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  void _onControllerChanged() {
+    widget.onChanged?.call(widget.controller.text);
+  }
+
+  @override
   void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
     _removeOverlay();
     _focusNode.dispose();
     super.dispose();
@@ -508,7 +519,6 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
           decoration: decoration,
           textCapitalization: widget.textCapitalization,
           validator: widget.validator,
-          onChanged: widget.onChanged,
           onFieldSubmitted: widget.onSubmitted,
           textInputAction: widget.onSubmitted != null
               ? TextInputAction.search
