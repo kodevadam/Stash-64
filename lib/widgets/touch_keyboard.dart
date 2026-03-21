@@ -474,28 +474,57 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
       onPointerDown: (event) {
         _lastInteractionWasTouch = event.kind == PointerDeviceKind.touch;
       },
-      child: TextFormField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        decoration: decoration,
-        textCapitalization: widget.textCapitalization,
-        validator: widget.validator,
-        onChanged: widget.onChanged,
-        onFieldSubmitted: widget.onSubmitted,
-        textInputAction: widget.onSubmitted != null
-            ? TextInputAction.search
-            : TextInputAction.done,
-        maxLines: widget.maxLines,
-        readOnly: _showKeyboard,
-        showCursor: true,
-        enableInteractiveSelection: true,
-        onTap: () {
+      child: GestureDetector(
+        onDoubleTap: () {
+          // Select the word at the current cursor position
+          final text = widget.controller.text;
+          final offset = widget.controller.selection.baseOffset.clamp(0, text.length);
+          if (text.isNotEmpty) {
+            // Find word boundaries around the cursor
+            int start = offset;
+            int end = offset;
+            while (start > 0 && text[start - 1] != ' ') {
+              start--;
+            }
+            while (end < text.length && text[end] != ' ') {
+              end++;
+            }
+            if (start != end) {
+              widget.controller.selection = TextSelection(
+                baseOffset: start,
+                extentOffset: end,
+              );
+            }
+          }
+          // Also open the touch keyboard if it was a finger double-tap
           if (_lastInteractionWasTouch && !_showKeyboard) {
             _toggleKeyboard();
-          } else if (_showKeyboard) {
-            _focusNode.requestFocus();
           }
+          _focusNode.requestFocus();
         },
+        child: TextFormField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          decoration: decoration,
+          textCapitalization: widget.textCapitalization,
+          validator: widget.validator,
+          onChanged: widget.onChanged,
+          onFieldSubmitted: widget.onSubmitted,
+          textInputAction: widget.onSubmitted != null
+              ? TextInputAction.search
+              : TextInputAction.done,
+          maxLines: widget.maxLines,
+          readOnly: _showKeyboard,
+          showCursor: true,
+          enableInteractiveSelection: true,
+          onTap: () {
+            if (_lastInteractionWasTouch && !_showKeyboard) {
+              _toggleKeyboard();
+            } else if (_showKeyboard) {
+              _focusNode.requestFocus();
+            }
+          },
+        ),
       ),
     );
   }
