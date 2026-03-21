@@ -80,15 +80,18 @@ cp -a "$BUNDLE_DIR"/. "$APPDIR/usr/bin/"
 cp linux/stash64.desktop "$APPDIR/stash64.desktop"
 cp linux/stash64.desktop "$APPDIR/usr/share/applications/stash64.desktop"
 
-# Icon — use the SVG, also create a symlink at AppDir root
+# Convert SVG icon to PNG for AppImage compatibility
 if [ -f "assets/icon/stash64_icon.svg" ]; then
-  cp "assets/icon/stash64_icon.svg" "$APPDIR/usr/share/icons/hicolor/scalable/apps/stash64.svg"
-  cp "assets/icon/stash64_icon.svg" "$APPDIR/stash64.svg"
+  if command -v rsvg-convert &>/dev/null; then
+    echo "==> Converting SVG icon to PNG..."
+    rsvg-convert -w 256 -h 256 "assets/icon/stash64_icon.svg" -o "$APPDIR/stash64.png"
+    cp "$APPDIR/stash64.png" "$APPDIR/usr/share/icons/hicolor/scalable/apps/stash64.png"
+  else
+    echo "WARNING: rsvg-convert not found, cannot convert SVG icon to PNG"
+    echo "  Install librsvg: sudo pacman -S librsvg (Arch) or sudo apt install librsvg2-bin (Debian)"
+  fi
 else
-  # Fallback: generate a simple placeholder icon
-  echo "WARNING: No icon found, creating placeholder"
-  convert -size 256x256 xc:'#1a1a2e' -fill '#FFD700' -gravity center \
-    -pointsize 48 -annotate +0+0 'S64' "$APPDIR/stash64.png" 2>/dev/null || true
+  echo "WARNING: No icon found at assets/icon/stash64_icon.svg"
 fi
 
 # AppRun launcher script
@@ -96,7 +99,8 @@ cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 SELF="$(readlink -f "$0")"
 APPDIR="$(dirname "$SELF")"
-export LD_LIBRARY_PATH="$APPDIR/usr/bin/lib:$APPDIR/usr/lib:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$APPDIR/usr/bin/lib:$APPDIR/usr/lib:${LD_LIBRARY_PATH:-}:/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu"
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
 export PATH="$APPDIR/usr/bin:$PATH"
 exec "$APPDIR/usr/bin/stash_64" "$@"
 APPRUN

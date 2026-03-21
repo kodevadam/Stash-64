@@ -48,8 +48,17 @@ cp -r "$BUNDLE_DIR"/* "$APPDIR/usr/bin/"
 cp "$PROJECT_DIR/appimage/stash64.desktop" "$APPDIR/stash64.desktop"
 cp "$PROJECT_DIR/appimage/stash64.desktop" "$APPDIR/usr/share/applications/"
 
-# Copy icon if it exists
-if [ -f "$PROJECT_DIR/appimage/stash64.png" ]; then
+# Convert SVG icon to PNG for AppImage compatibility
+if [ -f "$PROJECT_DIR/assets/icon/stash64_icon.svg" ]; then
+  if command -v rsvg-convert &>/dev/null; then
+    echo "  Converting SVG icon to PNG..."
+    rsvg-convert -w 256 -h 256 "$PROJECT_DIR/assets/icon/stash64_icon.svg" -o "$APPDIR/stash64.png"
+    cp "$APPDIR/stash64.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/stash64.png"
+  else
+    echo "WARNING: rsvg-convert not found, cannot convert SVG icon to PNG"
+    echo "  Install librsvg: sudo pacman -S librsvg (Arch) or sudo apt install librsvg2-bin (Debian)"
+  fi
+elif [ -f "$PROJECT_DIR/appimage/stash64.png" ]; then
   cp "$PROJECT_DIR/appimage/stash64.png" "$APPDIR/stash64.png"
   cp "$PROJECT_DIR/appimage/stash64.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
 fi
@@ -59,7 +68,8 @@ cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
-export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}:/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu"
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
 exec "${HERE}/usr/bin/stash_64" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
