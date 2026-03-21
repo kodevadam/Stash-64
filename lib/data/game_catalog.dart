@@ -251,15 +251,23 @@ class GameCatalog {
   }) async {
     final results = <CatalogGame>[];
 
-    // Try RAWG first
-    final rawgResults = await _searchRawg(query, consoleAbbreviation, rawgApiKey);
+    // Search both RAWG and LibRetro in parallel for best coverage
+    final rawgFuture = _searchRawg(query, consoleAbbreviation, rawgApiKey);
+    final lrFuture = consoleAbbreviation != null
+        ? _searchLibRetroListing(query, consoleAbbreviation)
+        : Future.value(<CatalogGame>[]);
+
+    final rawgResults = await rawgFuture;
+    final lrResults = await lrFuture;
+
     results.addAll(rawgResults);
 
-    // If RAWG returned nothing and we have a console, try LibRetro listing
-    if (results.isEmpty && consoleAbbreviation != null) {
-      final lrResults =
-          await _searchLibRetroListing(query, consoleAbbreviation);
-      results.addAll(lrResults);
+    // Add LibRetro results that aren't already in RAWG results
+    final existingTitles = results.map((g) => g.title.toLowerCase()).toSet();
+    for (final game in lrResults) {
+      if (!existingTitles.contains(game.title.toLowerCase())) {
+        results.add(game);
+      }
     }
 
     return results;
