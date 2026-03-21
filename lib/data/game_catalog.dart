@@ -216,7 +216,11 @@ class GameCatalog {
         const Duration(seconds: 12),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode != 200) {
+        throw Exception('RAWG API returned ${response.statusCode}');
+      }
+
+      {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final gamesData = data['results'] as List<dynamic>? ?? [];
 
@@ -266,8 +270,10 @@ class GameCatalog {
           ));
         }
       }
-    } catch (_) {
-      // API unavailable
+    } catch (e) {
+      // Re-throw so the UI can show a meaningful error
+      if (e.toString().contains('RAWG API returned')) rethrow;
+      // Network/timeout errors are non-fatal
     }
 
     return results;

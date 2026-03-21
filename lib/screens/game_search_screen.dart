@@ -64,9 +64,13 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('RAWG API returned')
+            ? 'Game database returned an error. The free API may be '
+                'temporarily unavailable — try again shortly.'
+            : 'Search failed. Check your internet connection.';
         setState(() {
           _isSearching = false;
-          _error = 'Search failed. Check your internet connection.';
+          _error = msg;
         });
       }
     }
