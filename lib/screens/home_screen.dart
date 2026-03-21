@@ -8,6 +8,7 @@ import '../widgets/game_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'game_detail_screen.dart';
 import 'game_form_screen.dart';
+import 'game_search_screen.dart';
 import 'settings_screen.dart';
 
 /// The main browse screen — a kiosk-style grid of game cover art.
@@ -19,28 +20,41 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('STASH 64'),
+        toolbarHeight: 64,
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.tune),
-            iconSize: 28,
-            tooltip: 'Filters',
-            onPressed: () => Scaffold.of(context).openDrawer(),
+          builder: (context) => SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.tune),
+              iconSize: 30,
+              tooltip: 'Filters',
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            iconSize: 28,
-            tooltip: 'Add Game',
-            onPressed: () => _navigateToAddGame(context),
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.add),
+              iconSize: 30,
+              tooltip: 'Add Game',
+              onPressed: () => _showAddOptions(context),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            iconSize: 28,
-            tooltip: 'Settings',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.settings),
+              iconSize: 30,
+              tooltip: 'Settings',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
             ),
           ),
         ],
@@ -60,6 +74,78 @@ class HomeScreen extends StatelessWidget {
             child: _buildGameGrid(context),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.textSecondary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 72,
+              child: ListTile(
+                leading: const Icon(Icons.search, size: 32,
+                    color: AppTheme.accentCyan),
+                title: const Text('Search Game Database',
+                    style: TextStyle(fontSize: 18)),
+                subtitle: const Text(
+                    'Find and add games from the catalog',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 24),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const GameSearchScreen()),
+                  );
+                },
+              ),
+            ),
+            SizedBox(
+              height: 72,
+              child: ListTile(
+                leading: const Icon(Icons.edit, size: 32,
+                    color: AppTheme.accentGold),
+                title: const Text('Add Custom Game',
+                    style: TextStyle(fontSize: 18)),
+                subtitle: const Text(
+                    'Manually enter all game details',
+                    style: TextStyle(color: AppTheme.textSecondary)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 24),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const GameFormScreen()),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -114,7 +200,7 @@ class HomeScreen extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 48,
+      height: 52,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -122,7 +208,9 @@ class HomeScreen extends StatelessWidget {
           ...chips,
           const SizedBox(width: 8),
           ActionChip(
-            label: const Text('Clear all'),
+            label: const Text('Clear all',
+                style: TextStyle(fontSize: 14)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             onPressed: () => provider.clearFilters(),
           ),
         ],
@@ -135,11 +223,12 @@ class HomeScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Chip(
-        label: Text(label),
-        deleteIcon: const Icon(Icons.close, size: 16),
+        label: Text(label, style: const TextStyle(fontSize: 14)),
+        deleteIcon: const Icon(Icons.close, size: 20),
         onDeleted: onRemove,
         backgroundColor: AppTheme.accentGold.withOpacity(0.2),
         deleteIconColor: AppTheme.accentGold,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       ),
     );
   }
@@ -155,36 +244,87 @@ class HomeScreen extends StatelessWidget {
 
     if (provider.games.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.videogame_asset_off,
-              size: 64,
-              color: AppTheme.textSecondary.withOpacity(0.4),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              provider.filterState.hasActiveFilters
-                  ? 'No games match your filters'
-                  : 'No games in your collection yet',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            if (provider.filterState.hasActiveFilters)
-              TextButton(
-                onPressed: () => provider.clearFilters(),
-                child: const Text('Clear filters'),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: () => _navigateToAddGame(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Add your first game'),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.videogame_asset_off,
+                size: 80,
+                color: AppTheme.textSecondary.withOpacity(0.4),
               ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                provider.filterState.hasActiveFilters
+                    ? 'No games match your filters'
+                    : 'No games in your collection yet',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontSize: 18,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              if (provider.filterState.hasActiveFilters)
+                SizedBox(
+                  height: 52,
+                  child: TextButton(
+                    onPressed: () => provider.clearFilters(),
+                    child: const Text('Clear filters',
+                        style: TextStyle(fontSize: 16)),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      width: 280,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const GameSearchScreen()),
+                        ),
+                        icon: const Icon(Icons.search, size: 24),
+                        label: const Text('Search Game Database',
+                            style: TextStyle(fontSize: 16)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentCyan,
+                          foregroundColor: AppTheme.primaryDark,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 56,
+                      width: 280,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const GameFormScreen()),
+                        ),
+                        icon: const Icon(Icons.add, size: 24),
+                        label: const Text('Add Custom Game',
+                            style: TextStyle(fontSize: 16)),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: AppTheme.accentGold.withOpacity(0.5)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -214,14 +354,6 @@ class HomeScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GameDetailScreen(gameId: gameId),
-      ),
-    );
-  }
-
-  void _navigateToAddGame(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const GameFormScreen(),
       ),
     );
   }

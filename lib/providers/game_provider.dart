@@ -14,6 +14,7 @@ class GameProvider extends ChangeNotifier {
   List<GameConsole> _consoles = [];
   List<String> _genres = [];
   List<String> _storageLocations = [];
+  List<String> _rooms = [];
   FilterState _filterState = const FilterState();
   bool _isLoading = true;
   int _totalGameCount = 0;
@@ -22,11 +23,12 @@ class GameProvider extends ChangeNotifier {
   List<GameConsole> get consoles => _consoles;
   List<String> get genres => _genres;
   List<String> get storageLocations => _storageLocations;
+  List<String> get rooms => _rooms;
   FilterState get filterState => _filterState;
   bool get isLoading => _isLoading;
   int get totalGameCount => _totalGameCount;
 
-  /// Initialize provider: seed sample data on first run, then load everything.
+  /// Initialize provider: seed default consoles on first run, then load everything.
   Future<void> initialize() async {
     _isLoading = true;
     notifyListeners();
@@ -42,6 +44,7 @@ class GameProvider extends ChangeNotifier {
     _consoles = await _db.getConsoles();
     _genres = await _db.getGenres();
     _storageLocations = await _db.getStorageLocations();
+    _rooms = await _db.getRooms();
     _totalGameCount = await _db.getGameCount();
     _games = await _db.getGames(_filterState);
   }

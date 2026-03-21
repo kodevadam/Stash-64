@@ -22,6 +22,7 @@ class GameCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -44,48 +45,43 @@ class GameCard extends StatelessWidget {
                     Text(
                       game.title,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    // Console badge
-                    if (game.consoleAbbreviation != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentGold.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          game.consoleAbbreviation!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.accentGold,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 6),
+                    // Console + region badges
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        if (game.consoleAbbreviation != null)
+                          _buildBadge(game.consoleAbbreviation!,
+                              AppTheme.accentGold),
+                        if (game.region.isNotEmpty)
+                          _buildBadge(game.region, AppTheme.accentCyan),
+                      ],
+                    ),
                     const Spacer(),
-                    // Storage location
+                    // Location
                     Row(
                       children: [
                         Icon(
                           Icons.inventory_2_outlined,
-                          size: 12,
+                          size: 14,
                           color: AppTheme.textSecondary.withOpacity(0.7),
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            game.storageLocation,
+                            game.fullLocation.isNotEmpty
+                                ? game.fullLocation
+                                : 'No location',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               color:
                                   AppTheme.textSecondary.withOpacity(0.7),
                             ),
@@ -95,7 +91,7 @@ class GameCard extends StatelessWidget {
                         if (game.isFavorite)
                           const Icon(
                             Icons.star,
-                            size: 14,
+                            size: 16,
                             color: AppTheme.accentGold,
                           ),
                       ],
@@ -105,6 +101,25 @@ class GameCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: color,
+          fontFamily: 'monospace',
         ),
       ),
     );
@@ -131,14 +146,14 @@ class GameCard extends StatelessWidget {
           children: [
             Icon(
               Icons.videogame_asset,
-              size: 40,
+              size: 44,
               color: AppTheme.textSecondary.withOpacity(0.4),
             ),
             const SizedBox(height: 4),
             Text(
               game.consoleAbbreviation ?? '',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: 'monospace',
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textSecondary.withOpacity(0.5),

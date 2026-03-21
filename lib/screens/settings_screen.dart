@@ -18,7 +18,10 @@ class SettingsScreen extends StatelessWidget {
     final kiosk = KioskWrapper.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('SETTINGS')),
+      appBar: AppBar(
+        title: const Text('SETTINGS'),
+        toolbarHeight: 64,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

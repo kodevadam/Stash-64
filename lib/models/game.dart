@@ -7,7 +7,9 @@ class Game {
   final int minPlayers;
   final int maxPlayers;
   final String? coverArtPath; // Local file path to cover art image
-  final String storageLocation; // e.g., "Drawer 1", "Shelf A"
+  final String? room; // e.g., "Living Room", "Bedroom", "Game Room"
+  final String storageLocation; // e.g., "Drawer 1", "Shelf A", "Box 3"
+  final String region; // e.g., "NTSC-U", "NTSC-J", "PAL", "NTSC-U/C"
   final int? releaseYear;
   final String? notes;
   final bool isFavorite;
@@ -24,7 +26,9 @@ class Game {
     this.minPlayers = 1,
     this.maxPlayers = 1,
     this.coverArtPath,
+    this.room,
     required this.storageLocation,
+    this.region = '',
     this.releaseYear,
     this.notes,
     this.isFavorite = false,
@@ -37,6 +41,14 @@ class Game {
     return '$minPlayers-$maxPlayers players';
   }
 
+  /// Returns a display string combining room and storage location.
+  String get fullLocation {
+    final parts = <String>[];
+    if (room != null && room!.isNotEmpty) parts.add(room!);
+    if (storageLocation.isNotEmpty) parts.add(storageLocation);
+    return parts.join(' — ');
+  }
+
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
@@ -46,7 +58,9 @@ class Game {
       'min_players': minPlayers,
       'max_players': maxPlayers,
       'cover_art_path': coverArtPath,
+      'room': room,
       'storage_location': storageLocation,
+      'region': region,
       'release_year': releaseYear,
       'notes': notes,
       'is_favorite': isFavorite ? 1 : 0,
@@ -62,7 +76,9 @@ class Game {
       minPlayers: map['min_players'] as int? ?? 1,
       maxPlayers: map['max_players'] as int? ?? 1,
       coverArtPath: map['cover_art_path'] as String?,
+      room: map['room'] as String?,
       storageLocation: map['storage_location'] as String? ?? '',
+      region: map['region'] as String? ?? '',
       releaseYear: map['release_year'] as int?,
       notes: map['notes'] as String?,
       isFavorite: (map['is_favorite'] as int? ?? 0) == 1,
@@ -79,7 +95,9 @@ class Game {
     int? minPlayers,
     int? maxPlayers,
     String? coverArtPath,
+    String? room,
     String? storageLocation,
+    String? region,
     int? releaseYear,
     String? notes,
     bool? isFavorite,
@@ -94,7 +112,9 @@ class Game {
       minPlayers: minPlayers ?? this.minPlayers,
       maxPlayers: maxPlayers ?? this.maxPlayers,
       coverArtPath: coverArtPath ?? this.coverArtPath,
+      room: room ?? this.room,
       storageLocation: storageLocation ?? this.storageLocation,
+      region: region ?? this.region,
       releaseYear: releaseYear ?? this.releaseYear,
       notes: notes ?? this.notes,
       isFavorite: isFavorite ?? this.isFavorite,

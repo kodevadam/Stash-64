@@ -7,8 +7,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../theme/app_theme.dart';
+import 'touch_keyboard.dart';
 
-/// Searches for game cover art using free, open APIs and displays results
+/// Searches for game cover art using multiple free APIs and displays results
 /// for the user to pick from.
 class CoverArtSearchDialog extends StatefulWidget {
   final String gameTitle;
@@ -41,6 +42,7 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
   final _searchController = TextEditingController();
   List<_CoverResult> _results = [];
   bool _isSearching = false;
+  bool _isDownloading = false;
   String? _error;
 
   @override
@@ -67,7 +69,7 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
     });
 
     try {
-      final results = await _searchCovers(query, widget.consoleName);
+      final results = await _searchAllSources(query, widget.consoleName);
       if (mounted) {
         setState(() {
           _results = results;
@@ -81,28 +83,53 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
       if (mounted) {
         setState(() {
           _isSearching = false;
-          _error = 'Search failed: $e';
+          _error = 'Search failed. Check your connection.';
         });
       }
     }
   }
 
-  /// Search for covers using the RAWG Video Games Database API (free tier).
-  /// Falls back to a simple open search if needed.
-  Future<List<_CoverResult>> _searchCovers(
+  /// Search multiple sources in parallel for best coverage.
+  Future<List<_CoverResult>> _searchAllSources(
       String query, String? consoleName) async {
     final results = <_CoverResult>[];
 
-    // Use RAWG API (free, no key required for basic searches)
-    final searchQuery = consoleName != null
-        ? '$query $consoleName'
-        : query;
+    // Run all searches in parallel
+    final futures = <Future<List<_CoverResult>>>[
+      _searchRawg(query, consoleName),
+      _searchRawg(query, null), // Also search without console filter
+      _searchLibreRetro(query, consoleName),
+    ];
+
+    final allResults = await Future.wait(futures);
+
+    // Merge results, avoiding duplicates by URL
+    final seenUrls = <String>{};
+    for (final batch in allResults) {
+      for (final result in batch) {
+        if (!seenUrls.contains(result.imageUrl)) {
+          seenUrls.add(result.imageUrl);
+          results.add(result);
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /// Search RAWG API for game images.
+  Future<List<_CoverResult>> _searchRawg(
+      String query, String? consoleName) async {
+    final results = <_CoverResult>[];
+
+    final searchQuery =
+        consoleName != null ? '$query $consoleName' : query;
     final uri = Uri.parse(
-        'https://api.rawg.io/api/games?key=&search=${Uri.encodeComponent(searchQuery)}&page_size=12');
+        'https://api.rawg.io/api/games?key=&search=${Uri.encodeComponent(searchQuery)}&page_size=15&search_precise=true');
 
     try {
       final response = await http.get(uri).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 12),
       );
 
       if (response.statusCode == 200) {
@@ -112,70 +139,112 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
         for (final game in gamesData) {
           final imageUrl = game['background_image'] as String?;
           if (imageUrl != null && imageUrl.isNotEmpty) {
+            // Get platforms for display
+            final platforms = <String>[];
+            for (final p in (game['platforms'] as List<dynamic>? ?? [])) {
+              final name = p['platform']?['name'] as String?;
+              if (name != null) platforms.add(name);
+            }
+
             results.add(_CoverResult(
               title: game['name'] as String? ?? 'Unknown',
               imageUrl: imageUrl,
               year: (game['released'] as String?)?.split('-').firstOrNull,
+              source: 'RAWG',
+              platforms: platforms,
             ));
           }
         }
       }
     } catch (_) {
-      // API may not be available; that's okay
+      // API unavailable
     }
 
-    // Fallback: try OpenLibrary for game guides/books cover art
-    if (results.isEmpty) {
-      final olUri = Uri.parse(
-          'https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=6');
+    return results;
+  }
 
-      try {
-        final response = await http.get(olUri).timeout(
-          const Duration(seconds: 8),
-        );
+  /// Try to find boxart from LibRetro thumbnails (GitHub-hosted, free).
+  Future<List<_CoverResult>> _searchLibreRetro(
+      String query, String? consoleName) async {
+    final results = <_CoverResult>[];
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body) as Map<String, dynamic>;
-          final docs = data['docs'] as List<dynamic>? ?? [];
+    // LibRetro thumbnail naming convention uses the console name in the URL
+    // Map console names to LibRetro system names
+    const consoleToLibRetro = {
+      'Nintendo Entertainment System': 'Nintendo - Nintendo Entertainment System',
+      'NES': 'Nintendo - Nintendo Entertainment System',
+      'Famicom': 'Nintendo - Nintendo Entertainment System',
+      'Super Nintendo': 'Nintendo - Super Nintendo Entertainment System',
+      'SNES': 'Nintendo - Super Nintendo Entertainment System',
+      'Nintendo 64': 'Nintendo - Nintendo 64',
+      'N64': 'Nintendo - Nintendo 64',
+      'Nintendo GameCube': 'Nintendo - GameCube',
+      'Game Boy': 'Nintendo - Game Boy',
+      'Game Boy Color': 'Nintendo - Game Boy Color',
+      'Game Boy Advance': 'Nintendo - Game Boy Advance',
+      'Sega Genesis': 'Sega - Mega Drive - Genesis',
+      'Sega Mega Drive': 'Sega - Mega Drive - Genesis',
+      'Sega Master System': 'Sega - Master System - Mark III',
+      'Sega Saturn': 'Sega - Saturn',
+      'Sega Dreamcast': 'Sega - Dreamcast',
+      'Sega Game Gear': 'Sega - Game Gear',
+      'PlayStation': 'Sony - PlayStation',
+      'PS1': 'Sony - PlayStation',
+      'PlayStation 2': 'Sony - PlayStation 2',
+      'PS2': 'Sony - PlayStation 2',
+      'Atari 2600': 'Atari - 2600',
+      'Atari 7800': 'Atari - 7800',
+      'TurboGrafx-16': 'NEC - PC Engine - TurboGrafx 16',
+      'PC Engine': 'NEC - PC Engine - TurboGrafx 16',
+      'Neo Geo AES': 'SNK - Neo Geo',
+    };
 
-          for (final doc in docs) {
-            final coverId = doc['cover_i'] as int?;
-            if (coverId != null) {
-              results.add(_CoverResult(
-                title: doc['title'] as String? ?? 'Unknown',
-                imageUrl:
-                    'https://covers.openlibrary.org/b/id/$coverId-L.jpg',
-                year: doc['first_publish_year']?.toString(),
-              ));
-            }
-          }
-        }
-      } catch (_) {
-        // Fallback also failed
+    if (consoleName == null) return results;
+
+    final system = consoleToLibRetro[consoleName];
+    if (system == null) return results;
+
+    // LibRetro uses exact game names as filenames
+    // Try the exact title first
+    final safeName = query.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+    final boxartUrl =
+        'https://thumbnails.libretro.com/${Uri.encodeComponent(system)}/Named_Boxarts/${Uri.encodeComponent(safeName)}.png';
+
+    try {
+      final response = await http.head(Uri.parse(boxartUrl)).timeout(
+        const Duration(seconds: 6),
+      );
+
+      if (response.statusCode == 200) {
+        results.add(_CoverResult(
+          title: '$query (Box Art)',
+          imageUrl: boxartUrl,
+          source: 'LibRetro',
+          platforms: [consoleName],
+        ));
       }
+    } catch (_) {
+      // Not found
     }
 
     return results;
   }
 
   Future<void> _selectCover(_CoverResult result) async {
-    setState(() => _isSearching = true);
+    setState(() => _isDownloading = true);
 
     try {
-      // Download the image
       final response = await http.get(Uri.parse(result.imageUrl)).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 20),
       );
 
       if (response.statusCode == 200) {
-        // Save to app directory
         final appDir = await getApplicationDocumentsDirectory();
         final coverDir = Directory(p.join(appDir.path, 'covers'));
         if (!await coverDir.exists()) {
           await coverDir.create(recursive: true);
         }
 
-        // Determine extension from content type or URL
         String ext = '.jpg';
         final contentType = response.headers['content-type'];
         if (contentType != null) {
@@ -191,16 +260,16 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
       } else {
         if (mounted) {
           setState(() {
-            _isSearching = false;
-            _error = 'Failed to download image';
+            _isDownloading = false;
+            _error = 'Failed to download image (${response.statusCode})';
           });
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isSearching = false;
-          _error = 'Download failed: $e';
+          _isDownloading = false;
+          _error = 'Download failed. Check your connection.';
         });
       }
     }
@@ -210,9 +279,9 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppTheme.surfaceDark,
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 800),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -222,31 +291,41 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Search Cover Art',
-                      style: Theme.of(context).textTheme.titleLarge),
+                  const Text('Search Cover Art',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: SizedBox(
-                          height: AppTheme.touchTargetSize,
-                          child: TextField(
+                          height: 56,
+                          child: TouchKeyboardField(
                             controller: _searchController,
                             decoration: const InputDecoration(
                               hintText: 'Game title...',
                               prefixIcon: Icon(Icons.search),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
                             ),
-                            onSubmitted: (_) => _search(),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: _search,
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppTheme.accentGold,
-                          foregroundColor: AppTheme.primaryDark,
+                      SizedBox(
+                        height: 56,
+                        width: 56,
+                        child: ElevatedButton(
+                          onPressed: _search,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentGold,
+                            foregroundColor: AppTheme.primaryDark,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Icon(Icons.search, size: 28),
                         ),
                       ),
                     ],
@@ -262,10 +341,19 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
 
             // Cancel button
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CANCEL'),
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: AppTheme.textSecondary.withOpacity(0.3)),
+                  ),
+                  child: const Text('CANCEL',
+                      style: TextStyle(fontSize: 16)),
+                ),
               ),
             ),
           ],
@@ -275,11 +363,23 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
   }
 
   Widget _buildResults() {
-    if (_isSearching) {
-      return const Padding(
-        padding: EdgeInsets.all(40),
+    if (_isSearching || _isDownloading) {
+      return Padding(
+        padding: const EdgeInsets.all(40),
         child: Center(
-          child: CircularProgressIndicator(color: AppTheme.accentGold),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppTheme.accentGold),
+              const SizedBox(height: 12),
+              Text(
+                _isDownloading
+                    ? 'Downloading cover art...'
+                    : 'Searching multiple sources...',
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -292,11 +392,12 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.image_not_supported,
-                  size: 48,
+                  size: 56,
                   color: AppTheme.textSecondary.withOpacity(0.4)),
               const SizedBox(height: 12),
               Text(_error!,
-                  style: const TextStyle(color: AppTheme.textSecondary),
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary, fontSize: 15),
                   textAlign: TextAlign.center),
             ],
           ),
@@ -306,12 +407,12 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
 
     return GridView.builder(
       shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        childAspectRatio: 0.7,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemCount: _results.length,
       itemBuilder: (context, index) {
@@ -324,6 +425,7 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
   Widget _buildResultCard(_CoverResult result) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         onTap: () => _selectCover(result),
         child: Column(
@@ -335,14 +437,14 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const Center(
                   child: Icon(Icons.broken_image,
-                      color: AppTheme.textSecondary),
+                      color: AppTheme.textSecondary, size: 32),
                 ),
                 loadingBuilder: (context, child, progress) {
                   if (progress == null) return child;
                   return const Center(
                     child: SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 28,
+                      height: 28,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: AppTheme.accentGold),
                     ),
@@ -351,12 +453,25 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(6),
-              child: Text(
-                result.title,
-                style: const TextStyle(fontSize: 11),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    result.title,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (result.source.isNotEmpty)
+                    Text(
+                      result.source,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.textSecondary.withOpacity(0.7),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -370,10 +485,14 @@ class _CoverResult {
   final String title;
   final String imageUrl;
   final String? year;
+  final String source;
+  final List<String> platforms;
 
   const _CoverResult({
     required this.title,
     required this.imageUrl,
     this.year,
+    this.source = '',
+    this.platforms = const [],
   });
 }

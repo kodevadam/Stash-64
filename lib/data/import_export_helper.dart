@@ -62,7 +62,9 @@ class ImportExportHelper {
         'genre': game.genre,
         'min_players': game.minPlayers,
         'max_players': game.maxPlayers,
+        'room': game.room,
         'storage_location': game.storageLocation,
+        'region': game.region,
         'release_year': game.releaseYear,
         'notes': game.notes,
         'is_favorite': game.isFavorite,
@@ -73,7 +75,7 @@ class ImportExportHelper {
     }
 
     return {
-      'version': 1,
+      'version': 2,
       'exported_at': DateTime.now().toIso8601String(),
       'consoles': consoles
           .map((c) => {
@@ -121,7 +123,7 @@ class ImportExportHelper {
   static Future<ImportResult> importFromJson(
       Map<String, dynamic> data) async {
     final version = data['version'] as int? ?? 1;
-    if (version > 1) {
+    if (version > 2) {
       return ImportResult(
           success: false,
           message: 'Unsupported backup version: $version');
@@ -186,7 +188,9 @@ class ImportExportHelper {
         minPlayers: gData['min_players'] as int? ?? 1,
         maxPlayers: gData['max_players'] as int? ?? 1,
         coverArtPath: coverArtPath,
+        room: gData['room'] as String?,
         storageLocation: gData['storage_location'] as String? ?? '',
+        region: gData['region'] as String? ?? '',
         releaseYear: gData['release_year'] as int?,
         notes: gData['notes'] as String?,
         isFavorite: gData['is_favorite'] as bool? ?? false,

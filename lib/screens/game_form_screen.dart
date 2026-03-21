@@ -11,6 +11,7 @@ import '../models/game_console.dart';
 import '../providers/game_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cover_art_search.dart';
+import '../widgets/touch_keyboard.dart';
 
 /// Form screen for adding or editing a game.
 class GameFormScreen extends StatefulWidget {
@@ -25,12 +26,14 @@ class GameFormScreen extends StatefulWidget {
 class _GameFormScreenState extends State<GameFormScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
+  late TextEditingController _roomController;
   late TextEditingController _storageController;
   late TextEditingController _notesController;
   late TextEditingController _yearController;
 
   int? _selectedConsoleId;
   String _selectedGenre = '';
+  String _selectedRegion = '';
   int _minPlayers = 1;
   int _maxPlayers = 1;
   String? _coverArtPath;
@@ -42,15 +45,32 @@ class _GameFormScreenState extends State<GameFormScreen> {
     'Action',
     'Action-Adventure',
     'Beat \'em Up',
+    'Educational',
     'Fighting',
+    'Horror',
+    'Music/Rhythm',
     'Platformer',
     'Puzzle',
     'RPG',
     'Racing',
+    'Run and Gun',
     'Shooter',
     'Simulation',
     'Sports',
+    'Stealth',
     'Strategy',
+    'Survival',
+  ];
+
+  static const _regions = [
+    'NTSC-U',
+    'NTSC-J',
+    'PAL',
+    'NTSC-U/C',
+    'NTSC-K',
+    'PAL-A',
+    'PAL-B',
+    'Region Free',
   ];
 
   @override
@@ -58,6 +78,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
     super.initState();
     final game = widget.game;
     _titleController = TextEditingController(text: game?.title ?? '');
+    _roomController = TextEditingController(text: game?.room ?? '');
     _storageController =
         TextEditingController(text: game?.storageLocation ?? '');
     _notesController = TextEditingController(text: game?.notes ?? '');
@@ -65,6 +86,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
         text: game?.releaseYear?.toString() ?? '');
     _selectedConsoleId = game?.consoleId;
     _selectedGenre = game?.genre ?? '';
+    _selectedRegion = game?.region ?? '';
     _minPlayers = game?.minPlayers ?? 1;
     _maxPlayers = game?.maxPlayers ?? 1;
     _coverArtPath = game?.coverArtPath;
@@ -74,6 +96,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _roomController.dispose();
     _storageController.dispose();
     _notesController.dispose();
     _yearController.dispose();
@@ -87,15 +110,26 @@ class _GameFormScreenState extends State<GameFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'EDIT GAME' : 'ADD GAME'),
+        toolbarHeight: 64,
         actions: [
-          TextButton(
-            onPressed: () => _save(context),
-            child: const Text(
-              'SAVE',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: SizedBox(
+              height: 48,
+              child: TextButton(
+                onPressed: () => _save(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                ),
+                child: const Text(
+                  'SAVE',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
             ),
           ),
@@ -111,17 +145,19 @@ class _GameFormScreenState extends State<GameFormScreen> {
             const SizedBox(height: 24),
 
             // Title
-            TextFormField(
+            TouchKeyboardField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Game Title',
                 prefixIcon: Icon(Icons.title),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               textCapitalization: TextCapitalization.words,
               validator: (v) =>
                   v == null || v.trim().isEmpty ? 'Title is required' : null,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Console dropdown
             DropdownButtonFormField<int>(
@@ -129,8 +165,12 @@ class _GameFormScreenState extends State<GameFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'Console',
                 prefixIcon: Icon(Icons.videogame_asset),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               dropdownColor: AppTheme.cardDark,
+              isExpanded: true,
+              menuMaxHeight: 400,
               items: provider.consoles.map((c) {
                 return DropdownMenuItem(
                   value: c.id,
@@ -140,27 +180,47 @@ class _GameFormScreenState extends State<GameFormScreen> {
               onChanged: (v) => setState(() => _selectedConsoleId = v),
               validator: (v) => v == null ? 'Select a console' : null,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+
+            // Region
+            _buildRegionField(),
+            const SizedBox(height: 20),
 
             // Genre — dropdown + custom option
             _buildGenreField(provider),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Player count
             _buildPlayerCountSection(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+
+            // Room
+            TouchKeyboardField(
+              controller: _roomController,
+              decoration: InputDecoration(
+                labelText: 'Room',
+                prefixIcon: const Icon(Icons.room),
+                hintText: 'e.g., Living Room, Game Room',
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                suffixIcon: _buildRoomSuggestions(provider),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Storage location
-            TextFormField(
+            TouchKeyboardField(
               controller: _storageController,
               decoration: InputDecoration(
-                labelText: 'Storage Location',
+                labelText: 'Shelf / Drawer / Box',
                 prefixIcon: const Icon(Icons.inventory_2),
-                hintText: 'e.g., Drawer 1, Shelf A',
+                hintText: 'e.g., Drawer 1, Shelf A, Box 3',
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                 suffixIcon: _buildStorageSuggestions(provider),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Release year
             TextFormField(
@@ -168,6 +228,8 @@ class _GameFormScreenState extends State<GameFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'Release Year (optional)',
                 prefixIcon: Icon(Icons.calendar_today),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
@@ -179,45 +241,52 @@ class _GameFormScreenState extends State<GameFormScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Notes
-            TextFormField(
+            TouchKeyboardField(
               controller: _notesController,
               decoration: const InputDecoration(
                 labelText: 'Notes (optional)',
                 prefixIcon: Icon(Icons.notes),
                 alignLabelWithHint: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // Favorite toggle
-            SwitchListTile(
-              title: const Text('Favorite'),
-              secondary: Icon(
-                _isFavorite ? Icons.star : Icons.star_border,
-                color: _isFavorite ? AppTheme.accentGold : null,
+            SizedBox(
+              height: 64,
+              child: SwitchListTile(
+                title: const Text('Favorite',
+                    style: TextStyle(fontSize: 16)),
+                secondary: Icon(
+                  _isFavorite ? Icons.star : Icons.star_border,
+                  color: _isFavorite ? AppTheme.accentGold : null,
+                  size: 28,
+                ),
+                value: _isFavorite,
+                onChanged: (v) => setState(() => _isFavorite = v),
+                activeColor: AppTheme.accentGold,
               ),
-              value: _isFavorite,
-              onChanged: (v) => setState(() => _isFavorite = v),
-              activeColor: AppTheme.accentGold,
             ),
 
             const SizedBox(height: 40),
 
             // Save button (large touch target)
             SizedBox(
-              height: AppTheme.touchTargetSize,
+              height: 60,
               child: ElevatedButton(
                 onPressed: () => _save(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.accentGold,
                   foregroundColor: AppTheme.primaryDark,
                   textStyle: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                   ),
@@ -228,9 +297,63 @@ class _GameFormScreenState extends State<GameFormScreen> {
                 child: Text(_isEditing ? 'UPDATE GAME' : 'ADD TO COLLECTION'),
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRegionField() {
+    return DropdownButtonFormField<String>(
+      value: _selectedRegion.isNotEmpty ? _selectedRegion : null,
+      decoration: const InputDecoration(
+        labelText: 'Region',
+        prefixIcon: Icon(Icons.language),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      ),
+      dropdownColor: AppTheme.cardDark,
+      isExpanded: true,
+      hint: const Text('Select region (optional)'),
+      items: [
+        const DropdownMenuItem(
+          value: '',
+          child: Text('Not specified'),
+        ),
+        ..._regions.map((r) {
+          String description;
+          switch (r) {
+            case 'NTSC-U':
+              description = '$r (North America)';
+              break;
+            case 'NTSC-J':
+              description = '$r (Japan)';
+              break;
+            case 'PAL':
+              description = '$r (Europe/Australia)';
+              break;
+            case 'NTSC-U/C':
+              description = '$r (Americas)';
+              break;
+            case 'NTSC-K':
+              description = '$r (Korea)';
+              break;
+            case 'PAL-A':
+              description = '$r (Australia/NZ)';
+              break;
+            case 'PAL-B':
+              description = '$r (Europe)';
+              break;
+            default:
+              description = r;
+          }
+          return DropdownMenuItem(
+            value: r,
+            child: Text(description),
+          );
+        }),
+      ],
+      onChanged: (v) => setState(() => _selectedRegion = v ?? ''),
     );
   }
 
@@ -240,7 +363,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
         GestureDetector(
           onTap: _showCoverArtOptions,
           child: Container(
-            height: 200,
+            height: 220,
             decoration: BoxDecoration(
               color: AppTheme.cardDark,
               borderRadius: BorderRadius.circular(12),
@@ -264,10 +387,10 @@ class _GameFormScreenState extends State<GameFormScreen> {
                         top: 8,
                         right: 8,
                         child: CircleAvatar(
-                          radius: 18,
+                          radius: 24,
                           backgroundColor: Colors.black54,
                           child: IconButton(
-                            icon: const Icon(Icons.edit, size: 18),
+                            icon: const Icon(Icons.edit, size: 22),
                             color: Colors.white,
                             onPressed: _showCoverArtOptions,
                             padding: EdgeInsets.zero,
@@ -279,31 +402,45 @@ class _GameFormScreenState extends State<GameFormScreen> {
                 : _buildPickerPlaceholder(),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _pickCoverArt,
-                icon: const Icon(Icons.folder_open, size: 18),
-                label: const Text('From File'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.textSecondary,
-                  side: BorderSide(
-                      color: AppTheme.textSecondary.withOpacity(0.3)),
+              child: SizedBox(
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: _pickCoverArt,
+                  icon: const Icon(Icons.folder_open, size: 22),
+                  label: const Text('From File',
+                      style: TextStyle(fontSize: 15)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    side: BorderSide(
+                        color: AppTheme.textSecondary.withOpacity(0.3)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _searchCoverArt,
-                icon: const Icon(Icons.search, size: 18),
-                label: const Text('Search Online'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.accentCyan,
-                  side: BorderSide(
-                      color: AppTheme.accentCyan.withOpacity(0.5)),
+              child: SizedBox(
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: _searchCoverArt,
+                  icon: const Icon(Icons.search, size: 22),
+                  label: const Text('Search Online',
+                      style: TextStyle(fontSize: 15)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.accentCyan,
+                    side: BorderSide(
+                        color: AppTheme.accentCyan.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -320,7 +457,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
         children: [
           Icon(
             Icons.add_photo_alternate,
-            size: 48,
+            size: 56,
             color: AppTheme.textSecondary.withOpacity(0.5),
           ),
           const SizedBox(height: 8),
@@ -328,6 +465,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
             'Tap to add cover art',
             style: TextStyle(
               color: AppTheme.textSecondary.withOpacity(0.7),
+              fontSize: 16,
             ),
           ),
         ],
@@ -343,33 +481,52 @@ class _GameFormScreenState extends State<GameFormScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.folder_open),
-              title: const Text('Choose from file'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickCoverArt();
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.search, color: AppTheme.accentCyan),
-              title: const Text('Search online'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _searchCoverArt();
-              },
-            ),
-            if (_coverArtPath != null)
-              ListTile(
-                leading: const Icon(Icons.delete_outline,
-                    color: AppTheme.errorRed),
-                title: const Text('Remove cover art'),
+            SizedBox(
+              height: 64,
+              child: ListTile(
+                leading: const Icon(Icons.folder_open, size: 28),
+                title: const Text('Choose from file',
+                    style: TextStyle(fontSize: 16)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 24),
                 onTap: () {
                   Navigator.pop(ctx);
-                  setState(() => _coverArtPath = null);
+                  _pickCoverArt();
                 },
               ),
+            ),
+            SizedBox(
+              height: 64,
+              child: ListTile(
+                leading: const Icon(Icons.search,
+                    color: AppTheme.accentCyan, size: 28),
+                title: const Text('Search online',
+                    style: TextStyle(fontSize: 16)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 24),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _searchCoverArt();
+                },
+              ),
+            ),
+            if (_coverArtPath != null)
+              SizedBox(
+                height: 64,
+                child: ListTile(
+                  leading: const Icon(Icons.delete_outline,
+                      color: AppTheme.errorRed, size: 28),
+                  title: const Text('Remove cover art',
+                      style: TextStyle(fontSize: 16)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 24),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _coverArtPath = null);
+                  },
+                ),
+              ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -427,6 +584,8 @@ class _GameFormScreenState extends State<GameFormScreen> {
           decoration: const InputDecoration(
             labelText: 'Genre',
             prefixIcon: Icon(Icons.category),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           ),
           onChanged: (v) => _selectedGenre = v,
           validator: (v) =>
@@ -443,8 +602,9 @@ class _GameFormScreenState extends State<GameFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Min Players', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 4),
+              const Text('Min Players',
+                  style: TextStyle(fontSize: 14)),
+              const SizedBox(height: 6),
               _buildPlayerStepper(
                 value: _minPlayers,
                 onChanged: (v) {
@@ -464,8 +624,9 @@ class _GameFormScreenState extends State<GameFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Max Players', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 4),
+              const Text('Max Players',
+                  style: TextStyle(fontSize: 14)),
+              const SizedBox(height: 6),
               _buildPlayerStepper(
                 value: _maxPlayers,
                 min: _minPlayers,
@@ -485,35 +646,61 @@ class _GameFormScreenState extends State<GameFormScreen> {
     required ValueChanged<int> onChanged,
   }) {
     return Container(
+      height: 56,
       decoration: BoxDecoration(
         color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.remove),
-            onPressed: value > min ? () => onChanged(value - 1) : null,
-            iconSize: 24,
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.remove, size: 28),
+              onPressed: value > min ? () => onChanged(value - 1) : null,
+            ),
           ),
           Expanded(
             child: Text(
               '$value',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: value < max ? () => onChanged(value + 1) : null,
-            iconSize: 24,
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: IconButton(
+              icon: const Icon(Icons.add, size: 28),
+              onPressed: value < max ? () => onChanged(value + 1) : null,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRoomSuggestions(GameProvider provider) {
+    if (provider.rooms.isEmpty) return const SizedBox.shrink();
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.arrow_drop_down, size: 28),
+      tooltip: 'Existing rooms',
+      onSelected: (value) {
+        _roomController.text = value;
+      },
+      itemBuilder: (context) => provider.rooms
+          .map((loc) => PopupMenuItem(
+                value: loc,
+                height: 56,
+                child: Text(loc, style: const TextStyle(fontSize: 16)),
+              ))
+          .toList(),
     );
   }
 
@@ -521,13 +708,17 @@ class _GameFormScreenState extends State<GameFormScreen> {
     if (provider.storageLocations.isEmpty) return const SizedBox.shrink();
 
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.arrow_drop_down),
+      icon: const Icon(Icons.arrow_drop_down, size: 28),
       tooltip: 'Existing locations',
       onSelected: (value) {
         _storageController.text = value;
       },
       itemBuilder: (context) => provider.storageLocations
-          .map((loc) => PopupMenuItem(value: loc, child: Text(loc)))
+          .map((loc) => PopupMenuItem(
+                value: loc,
+                height: 56,
+                child: Text(loc, style: const TextStyle(fontSize: 16)),
+              ))
           .toList(),
     );
   }
@@ -566,7 +757,11 @@ class _GameFormScreenState extends State<GameFormScreen> {
       minPlayers: _minPlayers,
       maxPlayers: _maxPlayers,
       coverArtPath: _coverArtPath,
+      room: _roomController.text.trim().isEmpty
+          ? null
+          : _roomController.text.trim(),
       storageLocation: _storageController.text.trim(),
+      region: _selectedRegion,
       releaseYear: int.tryParse(_yearController.text),
       notes: _notesController.text.trim().isEmpty
           ? null

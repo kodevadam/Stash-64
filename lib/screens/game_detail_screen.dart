@@ -87,28 +87,40 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
               background: _buildCoverArtHero(game),
             ),
             actions: [
-              IconButton(
-                icon: Icon(
-                  game.isFavorite ? Icons.star : Icons.star_border,
-                  color: game.isFavorite ? AppTheme.accentGold : null,
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: IconButton(
+                  icon: Icon(
+                    game.isFavorite ? Icons.star : Icons.star_border,
+                    color: game.isFavorite ? AppTheme.accentGold : null,
+                  ),
+                  iconSize: 30,
+                  onPressed: () async {
+                    await context
+                        .read<GameProvider>()
+                        .toggleFavorite(game.id!);
+                    _loadGame();
+                  },
                 ),
-                iconSize: 28,
-                onPressed: () async {
-                  await context
-                      .read<GameProvider>()
-                      .toggleFavorite(game.id!);
-                  _loadGame();
-                },
               ),
-              IconButton(
-                icon: const Icon(Icons.edit),
-                iconSize: 28,
-                onPressed: () => _navigateToEdit(context, game),
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: IconButton(
+                  icon: const Icon(Icons.edit),
+                  iconSize: 30,
+                  onPressed: () => _navigateToEdit(context, game),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                iconSize: 28,
-                onPressed: () => _confirmDelete(context, game),
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  iconSize: 30,
+                  onPressed: () => _confirmDelete(context, game),
+                ),
               ),
             ],
           ),
@@ -136,11 +148,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           Icons.calendar_today,
                           '${game.releaseYear}',
                         ),
+                      if (game.region.isNotEmpty)
+                        _buildInfoChip(Icons.language, game.region),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Storage location — prominent display
+                  // Location — prominent display with room + storage
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -159,32 +173,50 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                           size: 28,
                         ),
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'STORAGE LOCATION',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.bold,
-                                color:
-                                    AppTheme.accentCyan.withOpacity(0.8),
-                                letterSpacing: 1.5,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'LOCATION',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      AppTheme.accentCyan.withOpacity(0.8),
+                                  letterSpacing: 1.5,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              game.storageLocation.isNotEmpty
-                                  ? game.storageLocation
-                                  : 'Not specified',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
+                              const SizedBox(height: 2),
+                              if (game.room != null &&
+                                  game.room!.isNotEmpty)
+                                Text(
+                                  game.room!,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              Text(
+                                game.storageLocation.isNotEmpty
+                                    ? game.storageLocation
+                                    : 'Not specified',
+                                style: TextStyle(
+                                  fontSize: game.room != null &&
+                                          game.room!.isNotEmpty
+                                      ? 15
+                                      : 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: game.room != null &&
+                                          game.room!.isNotEmpty
+                                      ? AppTheme.textSecondary
+                                      : AppTheme.textPrimary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

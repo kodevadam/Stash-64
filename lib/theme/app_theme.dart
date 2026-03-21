@@ -53,8 +53,9 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: cardDark,
         selectedColor: accentGold.withOpacity(0.3),
-        labelStyle: const TextStyle(color: textPrimary, fontSize: 13),
+        labelStyle: const TextStyle(color: textPrimary, fontSize: 14),
         side: BorderSide(color: textSecondary.withOpacity(0.3)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),

@@ -10,7 +10,7 @@ import '../models/filter_state.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'stash64.db';
-  static const _databaseVersion = 1;
+  static const _databaseVersion = 2;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -37,6 +37,7 @@ class DatabaseHelper {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -59,7 +60,9 @@ class DatabaseHelper {
         min_players INTEGER NOT NULL DEFAULT 1,
         max_players INTEGER NOT NULL DEFAULT 1,
         cover_art_path TEXT,
+        room TEXT DEFAULT '',
         storage_location TEXT NOT NULL DEFAULT '',
+        region TEXT NOT NULL DEFAULT '',
         release_year INTEGER,
         notes TEXT,
         is_favorite INTEGER NOT NULL DEFAULT 0,
@@ -85,7 +88,20 @@ class DatabaseHelper {
     await db.execute(
         'CREATE INDEX idx_games_storage ON games (storage_location)');
     await db.execute(
+        'CREATE INDEX idx_games_region ON games (region)');
+    await db.execute(
+        'CREATE INDEX idx_games_room ON games (room)');
+    await db.execute(
         'CREATE INDEX idx_screenshots_game ON screenshots (game_id)');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE games ADD COLUMN region TEXT NOT NULL DEFAULT ''");
+      await db.execute("ALTER TABLE games ADD COLUMN room TEXT DEFAULT ''");
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_games_region ON games (region)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_games_room ON games (room)');
+    }
   }
 
   // --- Console CRUD ---
@@ -229,6 +245,14 @@ class DatabaseHelper {
     final maps = await db.rawQuery(
         'SELECT DISTINCT storage_location FROM games WHERE storage_location != \'\' ORDER BY storage_location ASC');
     return maps.map((m) => m['storage_location'] as String).toList();
+  }
+
+  /// Get distinct rooms from the games table.
+  Future<List<String>> getRooms() async {
+    final db = await database;
+    final maps = await db.rawQuery(
+        "SELECT DISTINCT room FROM games WHERE room IS NOT NULL AND room != '' ORDER BY room ASC");
+    return maps.map((m) => m['room'] as String).toList();
   }
 
   /// Get total game count.
