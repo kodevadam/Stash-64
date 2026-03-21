@@ -210,6 +210,11 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // Game Search API
+          _buildSectionHeader(context, 'GAME SEARCH'),
+          _RawgApiKeyCard(settings: settings),
+          const SizedBox(height: 24),
+
           // About
           _buildSectionHeader(context, 'ABOUT'),
           Card(
@@ -396,6 +401,111 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('OK'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RawgApiKeyCard extends StatefulWidget {
+  final SettingsProvider settings;
+  const _RawgApiKeyCard({required this.settings});
+
+  @override
+  State<_RawgApiKeyCard> createState() => _RawgApiKeyCardState();
+}
+
+class _RawgApiKeyCardState extends State<_RawgApiKeyCard> {
+  late TextEditingController _controller;
+  bool _obscured = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.settings.rawgApiKey);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.key, color: AppTheme.accentGold, size: 24),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('RAWG API Key',
+                      style: TextStyle(fontSize: 16)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Optional. Get a free key at rawg.io/apidocs for '
+              'reliable game search. Works without one but may be '
+              'rate-limited.',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              obscureText: _obscured,
+              decoration: InputDecoration(
+                hintText: 'Paste API key here',
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _obscured ? Icons.visibility_off : Icons.visibility,
+                        color: AppTheme.textSecondary,
+                        size: 22,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscured = !_obscured),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.check,
+                          color: AppTheme.accentGold, size: 22),
+                      onPressed: () {
+                        widget.settings.setRawgApiKey(_controller.text);
+                        FocusScope.of(context).unfocus();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('API key saved'),
+                            backgroundColor: AppTheme.accentGold,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              onSubmitted: (v) {
+                widget.settings.setRawgApiKey(v);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('API key saved'),
+                    backgroundColor: AppTheme.accentGold,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

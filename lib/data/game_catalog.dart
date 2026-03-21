@@ -174,11 +174,12 @@ class GameCatalog {
   static Future<List<CatalogGame>> search(
     String query, {
     String? consoleAbbreviation,
+    String rawgApiKey = '',
   }) async {
     final results = <CatalogGame>[];
 
     // Try RAWG first
-    final rawgResults = await _searchRawg(query, consoleAbbreviation);
+    final rawgResults = await _searchRawg(query, consoleAbbreviation, rawgApiKey);
     results.addAll(rawgResults);
 
     // If RAWG returned nothing and we have a console, try LibRetro listing
@@ -192,11 +193,11 @@ class GameCatalog {
   }
 
   static Future<List<CatalogGame>> _searchRawg(
-      String query, String? consoleAbbr) async {
+      String query, String? consoleAbbr, String apiKey) async {
     final results = <CatalogGame>[];
 
     final params = <String, String>{
-      'key': '', // RAWG requires key param; empty string for rate-limited access
+      'key': apiKey, // RAWG API key; empty string for rate-limited access
       'search': query,
       'page_size': '20',
       'search_precise': 'true',

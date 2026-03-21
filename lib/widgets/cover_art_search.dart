@@ -6,7 +6,10 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:provider/provider.dart';
+
 import '../data/game_catalog.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import 'touch_keyboard.dart';
 
@@ -123,10 +126,11 @@ class _CoverArtSearchDialogState extends State<CoverArtSearchDialog> {
       String query, String? consoleName) async {
     final results = <_CoverResult>[];
 
+    final apiKey = context.read<SettingsProvider>().rawgApiKey;
     final searchQuery =
         consoleName != null ? '$query $consoleName' : query;
     final uri = Uri.parse(
-        'https://api.rawg.io/api/games?key=&search=${Uri.encodeComponent(searchQuery)}&page_size=15&search_precise=true');
+        'https://api.rawg.io/api/games?key=${Uri.encodeComponent(apiKey)}&search=${Uri.encodeComponent(searchQuery)}&page_size=15&search_precise=true');
 
     try {
       final response = await http.get(uri).timeout(

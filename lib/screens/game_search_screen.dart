@@ -10,6 +10,7 @@ import '../data/game_catalog.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/touch_keyboard.dart';
 
@@ -48,9 +49,11 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
     });
 
     try {
+      final apiKey = context.read<SettingsProvider>().rawgApiKey;
       final results = await GameCatalog.search(
         query,
         consoleAbbreviation: _selectedConsole?.abbreviation,
+        rawgApiKey: apiKey,
       );
 
       if (mounted) {
