@@ -498,6 +498,10 @@ class _TouchKeyboardFieldState extends State<TouchKeyboardField> {
     return Listener(
       onPointerDown: (event) {
         _lastInteractionWasTouch = event.kind == PointerDeviceKind.touch;
+        // If user clicks with mouse while touch keyboard is open, close it
+        if (event.kind == PointerDeviceKind.mouse && _showKeyboard) {
+          _hideKeyboard();
+        }
       },
       child: GestureDetector(
         onDoubleTap: () {
