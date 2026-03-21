@@ -99,8 +99,7 @@ cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 SELF="$(readlink -f "$0")"
 APPDIR="$(dirname "$SELF")"
-export LD_LIBRARY_PATH="$APPDIR/usr/bin/lib:$APPDIR/usr/lib:${LD_LIBRARY_PATH:-}:/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu"
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
+export LD_LIBRARY_PATH="$APPDIR/usr/bin/lib:${LD_LIBRARY_PATH:-}"
 export PATH="$APPDIR/usr/bin:$PATH"
 exec "$APPDIR/usr/bin/stash_64" "$@"
 APPRUN

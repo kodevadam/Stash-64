@@ -68,22 +68,16 @@ cat > "$APPDIR/AppRun" << 'APPRUN'
 #!/bin/bash
 SELF=$(readlink -f "$0")
 HERE=${SELF%/*}
-export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${HERE}/usr/lib:${LD_LIBRARY_PATH:-}:/usr/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu"
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
+export LD_LIBRARY_PATH="${HERE}/usr/bin/lib:${LD_LIBRARY_PATH:-}"
 exec "${HERE}/usr/bin/stash_64" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 
-# Step 3: Copy system libraries needed at runtime
-echo "[3/4] Bundling runtime libraries..."
-# SQLite is needed by sqflite_ffi
-for lib in libsqlite3.so.0; do
-  LIB_PATH=$(ldconfig -p | grep "$lib" | head -1 | awk '{print $NF}')
-  if [ -n "$LIB_PATH" ]; then
-    cp "$LIB_PATH" "$APPDIR/usr/lib/"
-    echo "  Bundled: $lib"
-  fi
-done
+# Step 3: Runtime libraries
+echo "[3/4] Checking runtime libraries..."
+# System libraries (libsqlite3, libGL, libGTK, etc.) are loaded from the host
+# to avoid version conflicts. Do not bundle them into the AppImage.
+echo "  Using host system libraries (no bundling needed)"
 
 # Step 4: Package as AppImage
 echo "[4/4] Packaging AppImage..."
