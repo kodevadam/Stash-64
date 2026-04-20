@@ -7,6 +7,7 @@ class Game {
   final int minPlayers;
   final int maxPlayers;
   final String? coverArtPath; // Local file path to cover art image
+  final String? romPath; // Local ROM file path (N64 SummerCart64 uploads, etc.)
   final String? room; // e.g., "Living Room", "Bedroom", "Game Room"
   final String storageLocation; // e.g., "Drawer 1", "Shelf A", "Box 3"
   final String region; // e.g., "NTSC-U", "NTSC-J", "PAL", "NTSC-U/C"
@@ -28,6 +29,7 @@ class Game {
     this.minPlayers = 1,
     this.maxPlayers = 1,
     this.coverArtPath,
+    this.romPath,
     this.room,
     required this.storageLocation,
     this.region = '',
@@ -62,6 +64,7 @@ class Game {
       'min_players': minPlayers,
       'max_players': maxPlayers,
       'cover_art_path': coverArtPath,
+      'rom_path': romPath,
       'room': room,
       'storage_location': storageLocation,
       'region': region,
@@ -82,6 +85,7 @@ class Game {
       minPlayers: map['min_players'] as int? ?? 1,
       maxPlayers: map['max_players'] as int? ?? 1,
       coverArtPath: map['cover_art_path'] as String?,
+      romPath: map['rom_path'] as String?,
       room: map['room'] as String?,
       storageLocation: map['storage_location'] as String? ?? '',
       region: map['region'] as String? ?? '',
@@ -103,6 +107,7 @@ class Game {
     int? minPlayers,
     int? maxPlayers,
     String? coverArtPath,
+    String? romPath,
     String? room,
     String? storageLocation,
     String? region,
@@ -122,6 +127,7 @@ class Game {
       minPlayers: minPlayers ?? this.minPlayers,
       maxPlayers: maxPlayers ?? this.maxPlayers,
       coverArtPath: coverArtPath ?? this.coverArtPath,
+      romPath: romPath ?? this.romPath,
       room: room ?? this.room,
       storageLocation: storageLocation ?? this.storageLocation,
       region: region ?? this.region,

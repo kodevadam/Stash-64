@@ -8,13 +8,14 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart'
     show sqfliteFfiInit, databaseFactoryFfi;
 
+import '../models/backdrop.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
 import '../models/filter_state.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'stash64.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -64,6 +65,7 @@ class DatabaseHelper {
         min_players INTEGER NOT NULL DEFAULT 1,
         max_players INTEGER NOT NULL DEFAULT 1,
         cover_art_path TEXT,
+        rom_path TEXT,
         room TEXT DEFAULT '',
         storage_location TEXT NOT NULL DEFAULT '',
         region TEXT NOT NULL DEFAULT '',
@@ -87,6 +89,17 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE backdrops (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id INTEGER NOT NULL,
+        file_path TEXT NOT NULL,
+        media_type TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+      )
+    ''');
+
     await db.execute(
         'CREATE INDEX idx_games_console ON games (console_id)');
     await db.execute(
@@ -99,6 +112,8 @@ class DatabaseHelper {
         'CREATE INDEX idx_games_room ON games (room)');
     await db.execute(
         'CREATE INDEX idx_screenshots_game ON screenshots (game_id)');
+    await db.execute(
+        'CREATE INDEX idx_backdrops_game ON backdrops (game_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -111,6 +126,23 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE games ADD COLUMN pricecharting_price REAL');
       await db.execute('ALTER TABLE games ADD COLUMN pricecharting_url TEXT');
+    }
+    if (oldVersion < 4) {
+      // ROM file path for flashcart upload (SummerCart64, EverDrive, etc.)
+      await db.execute('ALTER TABLE games ADD COLUMN rom_path TEXT');
+      // Backdrop media shown behind the game detail page (images/gifs/videos).
+      await db.execute('''
+        CREATE TABLE backdrops (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          game_id INTEGER NOT NULL,
+          file_path TEXT NOT NULL,
+          media_type TEXT NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_backdrops_game ON backdrops (game_id)');
     }
   }
 
@@ -322,5 +354,51 @@ class DatabaseHelper {
   Future<int> deleteScreenshot(int id) async {
     final db = await database;
     return db.delete('screenshots', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- Backdrop CRUD ---
+
+  Future<int> insertBackdrop(Backdrop backdrop) async {
+    final db = await database;
+    final count = await db.rawQuery(
+        'SELECT COUNT(*) as c FROM backdrops WHERE game_id = ?',
+        [backdrop.gameId]);
+    final sortOrder = (count.first['c'] as int);
+    return db.insert(
+      'backdrops',
+      backdrop.toMap()..['sort_order'] = sortOrder,
+    );
+  }
+
+  Future<List<Backdrop>> getBackdrops(int gameId) async {
+    final db = await database;
+    final rows = await db.query(
+      'backdrops',
+      where: 'game_id = ?',
+      whereArgs: [gameId],
+      orderBy: 'sort_order ASC, id ASC',
+    );
+    return rows.map((r) => Backdrop.fromMap(r)).toList();
+  }
+
+  Future<int> deleteBackdrop(int id) async {
+    final db = await database;
+    return db.delete('backdrops', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateBackdropOrder(List<Backdrop> backdrops) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var i = 0; i < backdrops.length; i++) {
+      final b = backdrops[i];
+      if (b.id == null) continue;
+      batch.update(
+        'backdrops',
+        {'sort_order': i},
+        where: 'id = ?',
+        whereArgs: [b.id],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 }
