@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/sc64_service.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import 'console_management_screen.dart';
+import 'game_form_io.dart' if (dart.library.html) 'game_form_web.dart';
 import 'settings_io.dart' if (dart.library.html) 'settings_web.dart';
 
 /// Settings screen with console management, import/export, and kiosk controls.
@@ -219,6 +221,20 @@ class SettingsScreen extends StatelessWidget {
           _RawgApiKeyCard(settings: settings),
           const SizedBox(height: 24),
 
+          // SummerCart64 flashcart integration (native only)
+          if (!kIsWeb) ...[
+            _buildSectionHeader(context, 'SUMMERCART64'),
+            _Sc64Card(settings: settings),
+            const SizedBox(height: 24),
+          ],
+
+          // Game-detail backdrop media
+          if (!kIsWeb) ...[
+            _buildSectionHeader(context, 'GAME PAGE BACKDROP'),
+            _BackdropCard(settings: settings),
+            const SizedBox(height: 24),
+          ],
+
           // About
           _buildSectionHeader(context, 'ABOUT'),
           Card(
@@ -414,6 +430,315 @@ class _RawgApiKeyCardState extends State<_RawgApiKeyCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Settings card for the SummerCart64 integration. Off by default; when
+/// enabled, exposes controls to pick the sc64deployer binary, ROM
+/// library dir, and probes the current device status.
+class _Sc64Card extends StatefulWidget {
+  final SettingsProvider settings;
+  const _Sc64Card({required this.settings});
+
+  @override
+  State<_Sc64Card> createState() => _Sc64CardState();
+}
+
+class _Sc64CardState extends State<_Sc64Card> {
+  Sc64Status _status = Sc64Status.unknown;
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.settings.sc64Enabled) _refreshStatus();
+  }
+
+  Future<void> _refreshStatus() async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    final svc = Sc64Service(binaryPath: widget.settings.sc64BinaryPath);
+    final status = await svc.checkStatus();
+    if (mounted) {
+      setState(() {
+        _status = status;
+        _checking = false;
+      });
+    }
+  }
+
+  Future<void> _pickBinary() async {
+    final path = await pickSc64BinaryPath();
+    if (path != null) {
+      await widget.settings.setSc64BinaryPath(path);
+      _refreshStatus();
+    }
+  }
+
+  Future<void> _autoDetectBinary() async {
+    final detected = await Sc64Service.autoDetectBinary();
+    if (detected != null) {
+      await widget.settings.setSc64BinaryPath(detected);
+      _refreshStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Found sc64deployer at $detected')),
+        );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('sc64deployer not found on PATH')),
+      );
+    }
+  }
+
+  Future<void> _pickRomDir() async {
+    final dir = await pickRomLibraryDir();
+    if (dir != null) await widget.settings.setRomLibraryDir(dir);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.settings;
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.cable, color: AppTheme.accentGold),
+            title: const Text('Enable SummerCart64 uploads'),
+            subtitle: const Text(
+                'Adds an upload button on N64 game pages. Desktop only.'),
+            value: s.sc64Enabled,
+            activeColor: AppTheme.accentGold,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            onChanged: (v) async {
+              await s.setSc64Enabled(v);
+              if (v) _refreshStatus();
+            },
+          ),
+          if (s.sc64Enabled) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.terminal, color: AppTheme.accentCyan),
+              title: const Text('sc64deployer binary'),
+              subtitle: Text(
+                s.sc64BinaryPath.isEmpty
+                    ? 'Using PATH (falls back to `sc64deployer`)'
+                    : s.sc64BinaryPath,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Wrap(
+                spacing: 4,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.radar),
+                    tooltip: 'Auto-detect on PATH',
+                    onPressed: _autoDetectBinary,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.folder_open),
+                    tooltip: 'Pick binary',
+                    onPressed: _pickBinary,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading:
+                  const Icon(Icons.folder, color: AppTheme.accentCyan),
+              title: const Text('ROM library directory'),
+              subtitle: Text(
+                s.romLibraryDir.isEmpty
+                    ? 'Default: app documents / roms/'
+                    : s.romLibraryDir,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.folder_open),
+                tooltip: 'Pick directory',
+                onPressed: _pickRomDir,
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: _Sc64StatusIcon(state: _status.state),
+              title: Text(_Sc64StatusIcon.labelFor(_status.state)),
+              subtitle: Text(
+                _status.message.isEmpty
+                    ? 'Tap refresh to probe'
+                    : _status.message,
+              ),
+              trailing: IconButton(
+                icon: _checking
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.accentGold,
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+                onPressed: _checking ? null : _refreshStatus,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Sc64StatusIcon extends StatelessWidget {
+  final Sc64DeviceState state;
+  const _Sc64StatusIcon({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _iconFor(state);
+    return Icon(data.$1, color: data.$2);
+  }
+
+  static String labelFor(Sc64DeviceState state) {
+    switch (state) {
+      case Sc64DeviceState.ready:            return 'Connected and ready';
+      case Sc64DeviceState.lockedByConsole:  return 'Locked by N64';
+      case Sc64DeviceState.notConnected:     return 'Not connected';
+      case Sc64DeviceState.binaryMissing:    return 'sc64deployer not found';
+      case Sc64DeviceState.notSupported:     return 'Desktop only';
+      case Sc64DeviceState.error:            return 'Error';
+      case Sc64DeviceState.unknown:          return 'Status unknown';
+    }
+  }
+
+  static (IconData, Color) _iconFor(Sc64DeviceState state) {
+    switch (state) {
+      case Sc64DeviceState.ready:
+        return (Icons.check_circle, AppTheme.accentCyan);
+      case Sc64DeviceState.lockedByConsole:
+        return (Icons.lock, AppTheme.accentGold);
+      case Sc64DeviceState.notConnected:
+      case Sc64DeviceState.binaryMissing:
+      case Sc64DeviceState.notSupported:
+      case Sc64DeviceState.unknown:
+        return (Icons.help_outline, AppTheme.textSecondary);
+      case Sc64DeviceState.error:
+        return (Icons.error, AppTheme.errorRed);
+    }
+  }
+}
+
+/// Settings card for the per-game backdrop feature.
+class _BackdropCard extends StatelessWidget {
+  final SettingsProvider settings;
+  const _BackdropCard({required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary:
+                const Icon(Icons.wallpaper, color: AppTheme.accentGold),
+            title: const Text('Render per-game backdrops'),
+            subtitle: const Text(
+                'Shows user-added images / gifs / videos behind each game page.'),
+            value: settings.backdropEnabled,
+            activeColor: AppTheme.accentGold,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            onChanged: (v) => settings.setBackdropEnabled(v),
+          ),
+          if (settings.backdropEnabled) ...[
+            const Divider(height: 1),
+            ListTile(
+              leading:
+                  const Icon(Icons.shuffle, color: AppTheme.accentCyan),
+              title: const Text('Playback mode'),
+              subtitle: Text(
+                settings.backdropPlayback == BackdropPlayback.shuffle
+                    ? 'Shuffle — pick one random backdrop per visit'
+                    : 'Cycle — crossfade through them in order',
+              ),
+              trailing: DropdownButton<BackdropPlayback>(
+                value: settings.backdropPlayback,
+                underline: const SizedBox(),
+                items: const [
+                  DropdownMenuItem(
+                    value: BackdropPlayback.shuffle,
+                    child: Text('Shuffle'),
+                  ),
+                  DropdownMenuItem(
+                    value: BackdropPlayback.cycle,
+                    child: Text('Cycle'),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v != null) settings.setBackdropPlayback(v);
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.blur_on, color: AppTheme.accentCyan),
+                  const SizedBox(width: 16),
+                  const Expanded(child: Text('Blur')),
+                  Text(
+                    settings.backdropBlurSigma.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      color: AppTheme.accentGold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Slider(
+              value: settings.backdropBlurSigma,
+              min: 0,
+              max: 40,
+              divisions: 40,
+              activeColor: AppTheme.accentGold,
+              onChanged: (v) => settings.setBackdropBlurSigma(v),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.opacity, color: AppTheme.accentCyan),
+                  const SizedBox(width: 16),
+                  const Expanded(child: Text('Darken overlay')),
+                  Text(
+                    '${(settings.backdropScrimOpacity * 100).round()}%',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      color: AppTheme.accentGold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Slider(
+              value: settings.backdropScrimOpacity,
+              min: 0,
+              max: 1,
+              divisions: 20,
+              activeColor: AppTheme.accentGold,
+              onChanged: (v) => settings.setBackdropScrimOpacity(v),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
       ),
     );
   }
