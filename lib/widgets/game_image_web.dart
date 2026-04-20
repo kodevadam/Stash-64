@@ -6,6 +6,8 @@ Widget buildPlatformImage({
   required BoxFit fit,
   double? width,
   double? height,
+  int? cacheWidth,
+  int? cacheHeight,
   ImageErrorWidgetBuilder? errorBuilder,
 }) {
   return Image.network(
@@ -13,6 +15,8 @@ Widget buildPlatformImage({
     fit: fit,
     width: width,
     height: height,
+    cacheWidth: cacheWidth,
+    cacheHeight: cacheHeight,
     errorBuilder: errorBuilder,
   );
 }

@@ -7,14 +7,14 @@
     android:viewportHeight="108">
     <!-- Controller silhouette centered in safe zone -->
     <path
-        android:fillColor="#FFB800"
+        android:fillColor="#E2B714"
         android:pathData="M36,44 h36 a14,14 0 0 1 14,14 v0 a14,14 0 0 1 -14,14 h-3 l-6,-6 h-18 l-6,6 h-3 a14,14 0 0 1 -14,-14 v0 a14,14 0 0 1 14,-14 z" />
     <!-- D-pad -->
     <path
-        android:fillColor="#0E0E12"
+        android:fillColor="#1A1A2E"
         android:pathData="M44,54 v12 M38,60 h12" />
     <!-- Buttons -->
     <path
-        android:fillColor="#0E0E12"
+        android:fillColor="#1A1A2E"
         android:pathData="M68,56 m-3,0 a3,3 0 1 1 6,0 a3,3 0 1 1 -6,0 M76,64 m-3,0 a3,3 0 1 1 6,0 a3,3 0 1 1 -6,0" />
 </vector>

@@ -131,28 +131,39 @@ class KioskWrapperState extends State<KioskWrapper>
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (_) => _onUserInteraction(),
-      onPointerMove: (_) => _onUserInteraction(),
-      onPointerHover: (_) => _onUserInteraction(),
-      child: MouseRegion(
-        cursor: _cursorVisible
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.none,
-        child: GestureDetector(
-          onDoubleTap: toggleFullscreen,
-          child: Stack(
-            children: [
-              widget.child,
-              if (_attractModeActive)
-                _AttractModeOverlay(
-                  animationController: _attractAnimController,
-                  onDismiss: () {
-                    setState(() => _attractModeActive = false);
-                    _resetTimers();
-                  },
-                ),
-            ],
+    // When attract mode is active, absorb the Android hardware Back press
+    // and use it to dismiss the screensaver instead of popping the route.
+    return PopScope(
+      canPop: !_attractModeActive,
+      onPopInvoked: (didPop) {
+        if (!didPop && _attractModeActive) {
+          setState(() => _attractModeActive = false);
+          _resetTimers();
+        }
+      },
+      child: Listener(
+        onPointerDown: (_) => _onUserInteraction(),
+        onPointerMove: (_) => _onUserInteraction(),
+        onPointerHover: (_) => _onUserInteraction(),
+        child: MouseRegion(
+          cursor: _cursorVisible
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.none,
+          child: GestureDetector(
+            onDoubleTap: toggleFullscreen,
+            child: Stack(
+              children: [
+                widget.child,
+                if (_attractModeActive)
+                  _AttractModeOverlay(
+                    animationController: _attractAnimController,
+                    onDismiss: () {
+                      setState(() => _attractModeActive = false);
+                      _resetTimers();
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       ),

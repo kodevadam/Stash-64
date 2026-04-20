@@ -6,6 +6,8 @@ Widget buildPlatformImage({
   required BoxFit fit,
   double? width,
   double? height,
+  int? cacheWidth,
+  int? cacheHeight,
   ImageErrorWidgetBuilder? errorBuilder,
 }) {
   throw UnsupportedError('Cannot create image on this platform');

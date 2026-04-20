@@ -13,9 +13,21 @@ class AppTheme {
   static const Color errorRed = Color(0xFFFF6B6B);
 
   static ThemeData get darkTheme {
+    // Consistent focus ring for D-pad / keyboard navigation. Applied at the
+    // theme level so FilterChip, ListTile, IconButton, ElevatedButton, etc.
+    // all pick it up without per-widget wiring.
+    final focusOverlay = accentGold.withOpacity(0.28);
+    final focusedBorder = MaterialStateBorderSide.resolveWith((states) {
+      if (states.contains(MaterialState.focused)) {
+        return const BorderSide(color: accentGold, width: 3);
+      }
+      return BorderSide(color: textSecondary.withOpacity(0.3));
+    });
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      focusColor: focusOverlay,
       colorScheme: ColorScheme.dark(
         primary: accentGold,
         secondary: accentCyan,
@@ -54,10 +66,60 @@ class AppTheme {
         backgroundColor: cardDark,
         selectedColor: accentGold.withOpacity(0.3),
         labelStyle: const TextStyle(color: textPrimary, fontSize: 14),
-        side: BorderSide(color: textSecondary.withOpacity(0.3)),
+        side: focusedBorder,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          overlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) return focusOverlay;
+            if (states.contains(MaterialState.hovered)) {
+              return accentGold.withOpacity(0.12);
+            }
+            return null;
+          }),
+          shape: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) {
+              return const CircleBorder(
+                side: BorderSide(color: accentGold, width: 2),
+              );
+            }
+            return const CircleBorder();
+          }),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        focusColor: focusOverlay,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          overlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) return focusOverlay;
+            return null;
+          }),
+          side: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) {
+              return const BorderSide(color: accentGold, width: 2);
+            }
+            return null;
+          }),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          overlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) return focusOverlay;
+            return null;
+          }),
+          side: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.focused)) {
+              return const BorderSide(color: accentGold, width: 3);
+            }
+            return null;
+          }),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

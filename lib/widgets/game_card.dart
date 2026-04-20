@@ -205,9 +205,13 @@ class _GameCardState extends State<GameCard> {
 
   Widget _buildCoverArt() {
     if (game.coverArtPath != null && game.coverArtPath!.isNotEmpty) {
+      // Grid tiles max out around 400px wide on a 4K TV; decoding a 2000px
+      // source bitmap to fill them is wasteful. Cap decoded width to keep
+      // the GPU / heap happy on Chromecast-class hardware.
       return buildPlatformImage(
         path: game.coverArtPath!,
         fit: BoxFit.cover,
+        cacheWidth: 400,
         errorBuilder: (_, __, ___) => _buildPlaceholder(),
       );
     }
