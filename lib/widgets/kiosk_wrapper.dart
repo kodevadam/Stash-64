@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -55,15 +56,45 @@ class KioskWrapperState extends State<KioskWrapper>
       duration: const Duration(seconds: 20),
     )..repeat();
     _resetTimers();
+    // Listen for F11 / Escape at the hardware level rather than via a
+    // KeyboardListener so we don't steal focus from D-pad navigation on TV.
+    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
     _cursorTimer?.cancel();
     _attractTimer?.cancel();
     _attractAnimController.dispose();
     super.dispose();
   }
+
+  bool _handleHardwareKey(KeyEvent event) {
+    if (!mounted) return false;
+    _onUserInteraction();
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey == LogicalKeyboardKey.f11) {
+      toggleFullscreen();
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_attractModeActive) {
+        setState(() => _attractModeActive = false);
+        _resetTimers();
+        return true;
+      } else if (_isFullscreen && !_isAndroid) {
+        // Don't swallow Back/Escape on Android — the system expects it for
+        // back-navigation in Flutter's Navigator.
+        toggleFullscreen();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   void _resetTimers() {
     // Reset cursor hide timer
@@ -100,48 +131,28 @@ class KioskWrapperState extends State<KioskWrapper>
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
-      focusNode: FocusNode()..requestFocus(),
-      onKeyEvent: (event) {
-        _onUserInteraction();
-        if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.f11) {
-            toggleFullscreen();
-          }
-          // Escape exits attract mode or fullscreen
-          if (event.logicalKey == LogicalKeyboardKey.escape) {
-            if (_attractModeActive) {
-              setState(() => _attractModeActive = false);
-              _resetTimers();
-            } else if (_isFullscreen) {
-              toggleFullscreen();
-            }
-          }
-        }
-      },
-      child: Listener(
-        onPointerDown: (_) => _onUserInteraction(),
-        onPointerMove: (_) => _onUserInteraction(),
-        onPointerHover: (_) => _onUserInteraction(),
-        child: MouseRegion(
-          cursor: _cursorVisible
-              ? SystemMouseCursors.basic
-              : SystemMouseCursors.none,
-          child: GestureDetector(
-            onDoubleTap: toggleFullscreen,
-            child: Stack(
-              children: [
-                widget.child,
-                if (_attractModeActive)
-                  _AttractModeOverlay(
-                    animationController: _attractAnimController,
-                    onDismiss: () {
-                      setState(() => _attractModeActive = false);
-                      _resetTimers();
-                    },
-                  ),
-              ],
-            ),
+    return Listener(
+      onPointerDown: (_) => _onUserInteraction(),
+      onPointerMove: (_) => _onUserInteraction(),
+      onPointerHover: (_) => _onUserInteraction(),
+      child: MouseRegion(
+        cursor: _cursorVisible
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.none,
+        child: GestureDetector(
+          onDoubleTap: toggleFullscreen,
+          child: Stack(
+            children: [
+              widget.child,
+              if (_attractModeActive)
+                _AttractModeOverlay(
+                  animationController: _attractAnimController,
+                  onDismiss: () {
+                    setState(() => _attractModeActive = false);
+                    _resetTimers();
+                  },
+                ),
+            ],
           ),
         ),
       ),

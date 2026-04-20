@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android TV banner: 320x180dp, shown on the Leanback home row. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_background" />
+    <item android:gravity="center">
+        <vector
+            android:width="200dp"
+            android:height="64dp"
+            android:viewportWidth="200"
+            android:viewportHeight="64">
+            <!-- Controller icon -->
+            <path
+                android:fillColor="#FFB800"
+                android:pathData="M14,20 h24 a10,10 0 0 1 10,10 v4 a10,10 0 0 1 -10,10 h-24 a10,10 0 0 1 -10,-10 v-4 a10,10 0 0 1 10,-10 z M20,28 v8 M16,32 h8 M34,30 a2,2 0 1 1 0,4 a2,2 0 1 1 0,-4 M40,34 a2,2 0 1 1 0,4 a2,2 0 1 1 0,-4" />
+            <!-- STASH 64 text (approximated as rectangles since vector text is painful) -->
+            <path
+                android:fillColor="#FFB800"
+                android:pathData="M60,22 h120 v4 h-120 z M60,30 h100 v4 h-100 z M60,38 h120 v4 h-120 z" />
+        </vector>
+    </item>
+</layer-list>

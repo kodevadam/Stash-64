@@ -5,26 +5,66 @@ import '../theme/app_theme.dart';
 import 'game_image_builder.dart';
 
 /// A touch-friendly card displaying a game's cover art, title, and key info.
-class GameCard extends StatelessWidget {
+class GameCard extends StatefulWidget {
   final Game game;
   final VoidCallback onTap;
   final VoidCallback? onFavoriteToggle;
+  final bool autofocus;
 
   const GameCard({
     super.key,
     required this.game,
     required this.onTap,
     this.onFavoriteToggle,
+    this.autofocus = false,
   });
 
   @override
+  State<GameCard> createState() => _GameCardState();
+}
+
+class _GameCardState extends State<GameCard> {
+  bool _focused = false;
+
+  Game get game => widget.game;
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
+    // The focus ring only paints when the card actually holds focus (D-pad /
+    // remote). Touch taps don't trigger focus, so touch UX is unchanged.
+    final borderRadius = BorderRadius.circular(10);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      transform: Matrix4.identity()..scale(_focused ? 1.04 : 1.0),
+      transformAlignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: _focused ? AppTheme.accentGold : Colors.transparent,
+          width: 3,
+        ),
+        boxShadow: _focused
+            ? [
+                BoxShadow(
+                  color: AppTheme.accentGold.withOpacity(0.4),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        child: InkWell(
+          onTap: widget.onTap,
+          autofocus: widget.autofocus,
+          onFocusChange: (hasFocus) {
+            if (mounted) setState(() => _focused = hasFocus);
+          },
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Cover art area
@@ -102,6 +142,7 @@ class GameCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

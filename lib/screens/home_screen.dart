@@ -267,7 +267,13 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    // Android TV / Leanback reports directional navigation. Only auto-focus
+    // the first card in that mode, so touch devices don't boot up with a
+    // focus ring painted on nothing the user asked for.
+    final isDirectionalNav =
+        mediaQuery.navigationMode == NavigationMode.directional;
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -282,6 +288,7 @@ class HomeScreen extends StatelessWidget {
         final game = provider.games[index];
         return GameCard(
           game: game,
+          autofocus: isDirectionalNav && index == 0,
           onTap: () => _navigateToGameDetail(context, game.id!),
         );
       },

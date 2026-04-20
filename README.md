@@ -26,7 +26,8 @@ A retro game collection browser built with Flutter. Designed as a touchscreen ki
 | Linux (ARM64/Raspberry Pi) | Primary |
 | Windows | Supported |
 | macOS | Supported |
-| Android | Supported |
+| Android (phone/tablet) | Supported |
+| Android TV / Chromecast with Google TV | Supported (sideload) |
 | iOS | Supported |
 
 ## Getting Started
@@ -53,6 +54,49 @@ flutter build linux --release
 ```
 
 The binary will be at `build/linux/<arch>/release/bundle/stash_64`.
+
+### Build for Android (phone / tablet / TV)
+
+```bash
+flutter pub get
+flutter build apk --release
+```
+
+APK lands at `build/app/outputs/flutter-apk/app-release.apk`.
+
+For a debug build you can sideload without signing setup:
+
+```bash
+flutter build apk --debug
+# or, if the device is already adb-connected:
+flutter install
+```
+
+The Android manifest declares touchscreen as **not required** and includes a
+`LEANBACK_LAUNCHER` intent filter, so the same APK works on a Chromecast with
+Google TV and shows up on the TV home row alongside other apps.
+
+#### Sideloading to a Chromecast with Google TV
+
+1. Enable **Developer options** → **USB debugging** (or **ADB debugging over
+   network**) in the TV settings.
+2. From your dev machine:
+   ```bash
+   adb connect <chromecast-ip>:5555
+   adb install build/app/outputs/flutter-apk/app-release.apk
+   ```
+3. Launch from **Apps → See all → Stash 64** (or the "From your phone" row
+   depending on TV firmware).
+
+#### Remote control navigation
+
+The app responds to the Google TV remote out of the box:
+
+- **D-pad** → move focus between game cards, filter chips, and toolbar buttons.
+  The focused card shows a gold border and slight scale-up (focus ring only
+  appears under directional navigation, so touch devices aren't affected).
+- **Center / OK** → open the focused game.
+- **Back** → standard Navigator pop.
 
 ### Build as AppImage
 

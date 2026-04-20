@@ -20,6 +20,16 @@ build/
 # Linux build artifacts
 linux/flutter/ephemeral/
 
+# Android build artifacts
+android/.gradle/
+android/local.properties
+android/key.properties
+android/**/GeneratedPluginRegistrant.java
+android/app/release/
+android/app/debug/
+*.apk
+*.aab
+
 # AppImage build
 AppDir/
 *.AppImage

@@ -2,7 +2,11 @@ import 'dart:io';
 
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// Default factory (Android/iOS platform channel). On desktop we override it
+// with the FFI factory below inside initializeFfi().
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart'
+    show sqfliteFfiInit, databaseFactoryFfi;
 
 import '../models/game.dart';
 import '../models/game_console.dart';
