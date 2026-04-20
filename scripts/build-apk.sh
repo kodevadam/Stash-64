@@ -26,7 +26,7 @@ ANDROID_DIR="$SDK_DIR/android-sdk"
 DIST_DIR="$REPO_DIR/dist"
 
 # Pin toolchain versions so builds are reproducible.
-FLUTTER_VERSION="3.24.5"
+FLUTTER_VERSION="3.27.3"
 FLUTTER_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 ANDROID_PLATFORM="android-34"

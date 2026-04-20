@@ -21,7 +21,7 @@ FLUTTER_DIR="$SDK_DIR/flutter"
 TOOL_DIR="$SDK_DIR/appimage-tools"
 DIST_DIR="$REPO_DIR/dist"
 
-FLUTTER_VERSION="3.24.5"
+FLUTTER_VERSION="3.27.3"
 FLUTTER_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
 
 ARCH="$(uname -m)"
@@ -65,8 +65,16 @@ have_pkg() {
 }
 
 install_apt_deps() {
+  # build-essential brings in the right libstdc++ dev headers for the host's
+  # gcc version, so we don't have to know whether we're on jammy (12) vs
+  # noble (13). libfuse2 is still packaged on jammy; on noble it's libfuse2t64.
   local pkgs=(clang cmake ninja-build pkg-config libgtk-3-dev libsqlite3-dev
-              libstdc++-12-dev librsvg2-bin file xz-utils libfuse2)
+              build-essential librsvg2-bin file xz-utils)
+  case "$(. /etc/os-release 2>/dev/null && echo "${VERSION_CODENAME:-}")" in
+    noble|oracular) pkgs+=(libfuse2t64) ;;
+    *)              pkgs+=(libfuse2)    ;;
+  esac
+
   local missing=()
   for p in "${pkgs[@]}"; do
     dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "install ok installed" \
@@ -74,12 +82,18 @@ install_apt_deps() {
   done
   if [ ${#missing[@]} -gt 0 ]; then
     log "Installing apt packages: ${missing[*]}"
+    # Don't let a broken third-party PPA halt the whole bootstrap — we only
+    # need the base repos for the packages we actually install.
     if [ "$(id -u)" = "0" ]; then
-      apt-get update -y
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+      apt-get update -y \
+        || warn "apt-get update returned non-zero (likely a broken PPA); continuing"
+      DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y --no-install-recommends "${missing[@]}"
     else
-      sudo apt-get update -y
-      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+      sudo apt-get update -y \
+        || warn "apt-get update returned non-zero (likely a broken PPA); continuing"
+      sudo DEBIAN_FRONTEND=noninteractive \
+        apt-get install -y --no-install-recommends "${missing[@]}"
     fi
   fi
 }

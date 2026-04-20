@@ -1,1 +1,5 @@
-flutter/
+# Flutter regenerates these on every build — don't commit them.
+flutter/ephemeral/
+flutter/generated_plugin_registrant.cc
+flutter/generated_plugin_registrant.h
+flutter/generated_plugins.cmake

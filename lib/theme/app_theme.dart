@@ -91,9 +91,9 @@ class AppTheme {
           }),
         ),
       ),
-      listTileTheme: ListTileThemeData(
-        focusColor: focusOverlay,
-      ),
+      // ListTile picks up ThemeData.focusColor automatically through its
+      // internal Material + InkWell, so there's no ListTileThemeData entry
+      // here — ListTileThemeData doesn't expose focusColor.
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
           overlayColor: MaterialStateProperty.resolveWith((states) {
