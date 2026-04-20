@@ -35,10 +35,15 @@ android/app/debug/
 # We commit signed release artifacts under dist/ selectively — build output
 # APKs/AppImages live in build/ first and are copied into dist/.
 build/app/outputs/
+# Keep dist/ tracked so pre-built releases are downloadable from GitHub,
+# but ignore the scratch `.AppDir` + build caches that would otherwise
+# land there. (The actual .apk / .AppImage files are NOT ignored.)
+dist/*.AppDir/
 
-# AppImage build
+# AppImage build scratch. The final .AppImage artifact is committed under
+# dist/ for release downloads, so don't blanket-ignore it.
 AppDir/
-*.AppImage
+build/**/*.AppImage
 
 # Pub
 .pub-cache/
