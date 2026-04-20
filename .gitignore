@@ -27,8 +27,14 @@ android/key.properties
 android/**/GeneratedPluginRegistrant.java
 android/app/release/
 android/app/debug/
-*.apk
-*.aab
+
+# Locally-bootstrapped toolchain (Flutter SDK, Android SDK, appimagetool).
+# Scripts under scripts/ download these on demand into .stash64-sdk/.
+.stash64-sdk/
+
+# We commit signed release artifacts under dist/ selectively — build output
+# APKs/AppImages live in build/ first and are copied into dist/.
+build/app/outputs/
 
 # AppImage build
 AppDir/

@@ -57,20 +57,28 @@ The binary will be at `build/linux/<arch>/release/bundle/stash_64`.
 
 ### Build for Android (phone / tablet / TV)
 
+The repo ships a self-bootstrapping script that downloads Flutter + the
+Android SDK into `.stash64-sdk/` on first run and reuses them afterwards:
+
+```bash
+scripts/build-apk.sh                 # release APK
+scripts/build-apk.sh --debug         # debug APK (no signing setup needed)
+scripts/build-apk.sh --clean         # wipe the cached toolchain
+```
+
+Final APK is copied to `dist/Stash_64-<version>-<mode>.apk`.
+
+Host requirements: `curl`, `unzip`, `tar`, and JDK 17 (Android Gradle
+Plugin 8 won't build on older JDKs). Everything else is downloaded.
+
+Prefer to drive Flutter yourself?
+
 ```bash
 flutter pub get
 flutter build apk --release
 ```
 
 APK lands at `build/app/outputs/flutter-apk/app-release.apk`.
-
-For a debug build you can sideload without signing setup:
-
-```bash
-flutter build apk --debug
-# or, if the device is already adb-connected:
-flutter install
-```
 
 The Android manifest declares touchscreen as **not required** and includes a
 `LEANBACK_LAUNCHER` intent filter, so the same APK works on a Chromecast with
@@ -100,14 +108,18 @@ The app responds to the Google TV remote out of the box:
 
 ### Build as AppImage
 
-```bash
-# Install appimagetool first:
-# https://github.com/AppImage/appimagetool/releases
+`scripts/build-appimage.sh` is self-bootstrapping — it downloads Flutter
+and `appimagetool` into `.stash64-sdk/`, installs the Linux build deps
+(`clang`, `cmake`, `ninja`, `gtk3`, `sqlite3-dev`, `librsvg`) via
+apt/pacman, then builds.
 
-./scripts/build-appimage.sh
+```bash
+scripts/build-appimage.sh
+scripts/build-appimage.sh --clean   # wipe toolchain and start fresh
 ```
 
-This produces a portable `Stash_64-<arch>.AppImage` that runs on any Linux distribution.
+Output: `dist/Stash_64-<version>-<arch>.AppImage`. Runs on any modern Linux
+distribution with GTK 3.
 
 ### Generate App Icon
 
