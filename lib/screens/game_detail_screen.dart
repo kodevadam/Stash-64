@@ -1,12 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/sc64_service.dart';
+import '../models/backdrop.dart';
 import '../models/game.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/game_backdrop.dart';
 import '../widgets/game_image_builder.dart';
 import 'game_detail_native.dart' if (dart.library.html) 'game_detail_web.dart';
+import 'game_form_io.dart' if (dart.library.html) 'game_form_web.dart';
 import 'game_form_screen.dart';
 
 /// Full-screen game detail page showing cover art, info, and screenshots.
@@ -22,12 +29,24 @@ class GameDetailScreen extends StatefulWidget {
 class _GameDetailScreenState extends State<GameDetailScreen> {
   Game? _game;
   List<Map<String, dynamic>> _screenshots = [];
+  List<Backdrop> _backdrops = const [];
   bool _isLoading = true;
+
+  // SC64 status polling.
+  Sc64Status _sc64Status = Sc64Status.unknown;
+  Timer? _sc64PollTimer;
+  bool _uploadingRom = false;
 
   @override
   void initState() {
     super.initState();
     _loadGame();
+  }
+
+  @override
+  void dispose() {
+    _sc64PollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadGame() async {
@@ -36,13 +55,62 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     final allGames = provider.games;
     final game = allGames.where((g) => g.id == widget.gameId).firstOrNull;
     final screenshots = await loadScreenshots(widget.gameId);
+    List<Backdrop> backdrops = const [];
+    if (!kIsWeb) {
+      backdrops = await loadBackdrops(widget.gameId);
+    }
     if (mounted) {
       setState(() {
         _game = game;
         _screenshots = screenshots;
+        _backdrops = backdrops;
         _isLoading = false;
       });
+      _maybeStartSc64Polling();
     }
+  }
+
+  /// Start polling sc64deployer every 2s if the integration is enabled,
+  /// the game is an N64 cart, and it has a ROM attached. Stops on dispose.
+  void _maybeStartSc64Polling() {
+    _sc64PollTimer?.cancel();
+    if (kIsWeb) return;
+    final settings = context.read<SettingsProvider>();
+    if (!settings.sc64Enabled) return;
+    final game = _game;
+    if (game == null) return;
+    if (game.consoleAbbreviation != 'N64') return;
+    if (game.romPath == null || game.romPath!.isEmpty) return;
+
+    Future<void> poll() async {
+      if (!mounted) return;
+      final svc = Sc64Service(binaryPath: settings.sc64BinaryPath);
+      final status = await svc.checkStatus();
+      if (!mounted) return;
+      setState(() => _sc64Status = status);
+    }
+
+    poll();
+    _sc64PollTimer = Timer.periodic(const Duration(seconds: 2), (_) => poll());
+  }
+
+  Future<void> _uploadRomToSc64() async {
+    final game = _game;
+    if (game == null || game.romPath == null) return;
+    setState(() => _uploadingRom = true);
+    final settings = context.read<SettingsProvider>();
+    final svc = Sc64Service(binaryPath: settings.sc64BinaryPath);
+    final result = await svc.upload(game.romPath!);
+    if (!mounted) return;
+    setState(() => _uploadingRom = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor:
+            result.success ? AppTheme.accentGold : AppTheme.errorRed,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
@@ -64,10 +132,11 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
     }
 
     final game = _game!;
+    final settings = context.watch<SettingsProvider>();
+    final backdropEnabled = !kIsWeb && settings.backdropEnabled;
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+    final scrollView = CustomScrollView(
+      slivers: [
           // Hero cover art app bar
           SliverAppBar(
             expandedHeight: 300,
@@ -308,6 +377,19 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
             ),
           ),
 
+          // SummerCart64 upload button — only for N64 games with an
+          // attached ROM and the integration turned on in settings.
+          if (!kIsWeb &&
+              settings.sc64Enabled &&
+              game.consoleAbbreviation == 'N64' &&
+              (game.romPath?.isNotEmpty ?? false))
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: _buildSc64Card(game),
+              ),
+            ),
+
           // Screenshots section
           SliverToBoxAdapter(
             child: Padding(
@@ -391,8 +473,122 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           // Bottom padding
           const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
         ],
+    );
+
+    return Scaffold(
+      // Transparent so the backdrop shows through between sliver blocks.
+      backgroundColor: backdropEnabled ? Colors.transparent : null,
+      body: backdropEnabled
+          ? GameBackdrop(
+              backdrops: _backdrops,
+              fallbackImagePath: game.coverArtPath,
+              playback: settings.backdropPlayback,
+              blurSigma: settings.backdropBlurSigma,
+              scrimOpacity: settings.backdropScrimOpacity,
+              child: scrollView,
+            )
+          : scrollView,
+    );
+  }
+
+  Widget _buildSc64Card(Game game) {
+    final canUpload = _sc64Status.canUpload && !_uploadingRom;
+    final (icon, color, label) = _sc64ButtonAppearance();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: canUpload
+              ? AppTheme.accentGold.withOpacity(0.6)
+              : AppTheme.textSecondary.withOpacity(0.25),
+          width: canUpload ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SUMMERCART64',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textSecondary.withOpacity(0.8),
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: canUpload ? _uploadRomToSc64 : null,
+              icon: _uploadingRom
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.primaryDark,
+                      ),
+                    )
+                  : const Icon(Icons.upload, size: 20),
+              label: Text(_uploadingRom ? 'Sending…' : 'Send to SC64'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentGold,
+                foregroundColor: AppTheme.primaryDark,
+                disabledBackgroundColor:
+                    AppTheme.textSecondary.withOpacity(0.2),
+                disabledForegroundColor: AppTheme.textSecondary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  (IconData, Color, String) _sc64ButtonAppearance() {
+    switch (_sc64Status.state) {
+      case Sc64DeviceState.ready:
+        return (Icons.check_circle, AppTheme.accentCyan,
+            'Connected and ready');
+      case Sc64DeviceState.lockedByConsole:
+        return (Icons.lock, AppTheme.accentGold, 'Power off the N64 to upload');
+      case Sc64DeviceState.notConnected:
+        return (Icons.usb_off, AppTheme.textSecondary, 'Connect a SummerCart64');
+      case Sc64DeviceState.binaryMissing:
+        return (Icons.terminal, AppTheme.textSecondary,
+            'sc64deployer not found on PATH');
+      case Sc64DeviceState.notSupported:
+        return (Icons.block, AppTheme.textSecondary,
+            'Desktop only — not available here');
+      case Sc64DeviceState.error:
+        return (Icons.error, AppTheme.errorRed, _sc64Status.message);
+      case Sc64DeviceState.unknown:
+        return (Icons.help_outline, AppTheme.textSecondary, 'Checking…');
+    }
   }
 
   Widget _buildCoverArtHero(Game game) {
