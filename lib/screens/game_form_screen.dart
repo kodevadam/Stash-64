@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../data/game_catalog.dart';
+import '../models/backdrop.dart';
 import '../models/game.dart';
 import '../models/game_console.dart';
 import '../providers/game_provider.dart';
@@ -37,7 +40,10 @@ class _GameFormScreenState extends State<GameFormScreen> {
   int _minPlayers = 1;
   int _maxPlayers = 1;
   String? _coverArtPath;
+  String? _romPath;
   bool _isFavorite = false;
+
+  List<Backdrop> _backdrops = const [];
 
   bool get _isEditing => widget.game != null;
 
@@ -90,7 +96,18 @@ class _GameFormScreenState extends State<GameFormScreen> {
     _minPlayers = game?.minPlayers ?? 1;
     _maxPlayers = game?.maxPlayers ?? 1;
     _coverArtPath = game?.coverArtPath;
+    _romPath = game?.romPath;
     _isFavorite = game?.isFavorite ?? false;
+
+    // Load backdrops for this game (only meaningful when editing).
+    if (game?.id != null) {
+      _refreshBackdrops(game!.id!);
+    }
+  }
+
+  Future<void> _refreshBackdrops(int gameId) async {
+    final list = await loadBackdrops(gameId);
+    if (mounted) setState(() => _backdrops = list);
   }
 
   @override
@@ -257,6 +274,38 @@ class _GameFormScreenState extends State<GameFormScreen> {
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 20),
+
+            // ROM file — only shown on native + when the SC64 integration is on.
+            // Wrapping in a Consumer<SettingsProvider> so toggling the
+            // setting from another screen re-renders the form live.
+            if (!kIsWeb)
+              Consumer<SettingsProvider>(
+                builder: (context, settings, _) {
+                  if (!settings.sc64Enabled) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildRomPicker(settings),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
+
+            // Backdrops — native-only, gated on the setting.
+            if (!kIsWeb && _isEditing)
+              Consumer<SettingsProvider>(
+                builder: (context, settings, _) {
+                  if (!settings.backdropEnabled) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildBackdropSection(),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
 
             // Favorite toggle
             SizedBox(
@@ -730,6 +779,183 @@ class _GameFormScreenState extends State<GameFormScreen> {
     }
   }
 
+  Widget _buildRomPicker(SettingsProvider settings) {
+    final hasRom = _romPath != null && _romPath!.isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.textSecondary.withOpacity(0.25),
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.memory,
+                color: AppTheme.accentGold, size: 26),
+            title: const Text('ROM file',
+                style: TextStyle(fontSize: 16)),
+            subtitle: Text(
+              hasRom ? p.basename(_romPath!) : 'None attached',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Wrap(
+              spacing: 4,
+              children: [
+                if (hasRom)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Remove ROM',
+                    onPressed: () => setState(() => _romPath = null),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.folder_open,
+                      color: AppTheme.accentCyan),
+                  tooltip: hasRom ? 'Replace ROM' : 'Pick ROM',
+                  onPressed: () async {
+                    final picked = await pickAndSaveRom(
+                        libraryDir: settings.romLibraryDir);
+                    if (picked != null) setState(() => _romPath = picked);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackdropSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.textSecondary.withOpacity(0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.wallpaper,
+                color: AppTheme.accentGold, size: 26),
+            title: const Text('Backdrops',
+                style: TextStyle(fontSize: 16)),
+            subtitle: Text(
+              _backdrops.isEmpty
+                  ? 'None — add images, gifs, or videos'
+                  : '${_backdrops.length} attached',
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.add_photo_alternate,
+                  color: AppTheme.accentCyan, size: 26),
+              tooltip: 'Add backdrops',
+              onPressed: _addBackdrops,
+            ),
+          ),
+          if (_backdrops.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SizedBox(
+                height: 90,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _backdrops.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) => _buildBackdropThumb(_backdrops[i]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackdropThumb(Backdrop b) {
+    final isVideo = b.mediaType == BackdropMediaType.video;
+    return GestureDetector(
+      onLongPress: () => _confirmRemoveBackdrop(b),
+      child: Stack(
+        children: [
+          Container(
+            width: 130,
+            height: 90,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.surfaceDark,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: isVideo
+                ? Center(
+                    child: Icon(
+                      Icons.play_circle_outline,
+                      size: 36,
+                      color: AppTheme.textSecondary.withOpacity(0.8),
+                    ),
+                  )
+                : buildPlatformImage(
+                    path: b.filePath,
+                    fit: BoxFit.cover,
+                    cacheWidth: 260,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+          ),
+          Positioned(
+            bottom: 4,
+            left: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                b.mediaType.name.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accentGold,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: () => _confirmRemoveBackdrop(b),
+              child: const CircleAvatar(
+                radius: 12,
+                backgroundColor: Colors.black54,
+                child: Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addBackdrops() async {
+    final gameId = widget.game?.id;
+    if (gameId == null) return;
+    final added = await pickAndSaveBackdrops(gameId);
+    if (added > 0) await _refreshBackdrops(gameId);
+  }
+
+  Future<void> _confirmRemoveBackdrop(Backdrop b) async {
+    await deleteBackdropById(b.id!, b.filePath);
+    if (widget.game?.id != null) await _refreshBackdrops(widget.game!.id!);
+  }
+
   Future<void> _save(BuildContext context) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -780,6 +1006,7 @@ class _GameFormScreenState extends State<GameFormScreen> {
       minPlayers: _minPlayers,
       maxPlayers: _maxPlayers,
       coverArtPath: coverPath,
+      romPath: _romPath,
       room: _roomController.text.trim().isEmpty
           ? null
           : _roomController.text.trim(),
