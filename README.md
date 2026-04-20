@@ -57,28 +57,35 @@ The binary will be at `build/linux/<arch>/release/bundle/stash_64`.
 
 ### Build for Android (phone / tablet / TV)
 
-The repo ships a self-bootstrapping script that downloads Flutter + the
-Android SDK into `.stash64-sdk/` on first run and reuses them afterwards:
+Three ways to get an APK — pick whichever matches your setup best:
 
+**Docker (simplest, zero host setup):**
 ```bash
-scripts/build-apk.sh                 # release APK
-scripts/build-apk.sh --debug         # debug APK (no signing setup needed)
-scripts/build-apk.sh --clean         # wipe the cached toolchain
+scripts/build-apk-docker.sh                 # release
+scripts/build-apk-docker.sh --debug         # debug
 ```
+Pulls `ghcr.io/cirruslabs/flutter:3.27.3` (~1.3 GB once, cached after)
+and runs `flutter build apk` inside. Needs only Docker on the host.
 
-Final APK is copied to `dist/Stash_64-<version>-<mode>.apk`.
+**Self-bootstrapping native build:**
+```bash
+scripts/build-apk.sh                        # release
+scripts/build-apk.sh --debug                # debug
+scripts/build-apk.sh --clean                # wipe cached toolchain
+```
+Downloads Flutter + Android cmdline-tools into `.stash64-sdk/` on first
+run. Host needs `curl`, `unzip`, `tar`, JDK 17+ (Android Gradle Plugin 8
+won't run on older JDKs).
 
-Host requirements: `curl`, `unzip`, `tar`, and JDK 17 (Android Gradle
-Plugin 8 won't build on older JDKs). Everything else is downloaded.
-
-Prefer to drive Flutter yourself?
-
+**Roll your own (Flutter + Android SDK already on PATH):**
 ```bash
 flutter pub get
 flutter build apk --release
 ```
 
-APK lands at `build/app/outputs/flutter-apk/app-release.apk`.
+Final APK lands at `dist/Stash_64-<version>-<mode>.apk` for the first two
+options, or `build/app/outputs/flutter-apk/app-release.apk` for the
+third.
 
 The Android manifest declares touchscreen as **not required** and includes a
 `LEANBACK_LAUNCHER` intent filter, so the same APK works on a Chromecast with
