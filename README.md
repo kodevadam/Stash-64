@@ -14,8 +14,10 @@ A retro game collection browser built with Flutter. Designed as a touchscreen ki
 - **Search** — instant search across your collection
 - **Console management** — add, edit, and remove consoles with custom colors
 - **Import/export** — full JSON backup and restore of your collection, including images (base64-encoded)
+- **SummerCart64 flashcart upload** — for N64 games with an attached ROM, send the ROM to a connected SC64 via `sc64deployer` right from the game page. Live connect/lock status polling, spinner during transfer. Desktop only.
+- **Per-game backdrops** — optional ambient images / GIFs / videos behind each game page. Blur + scrim sliders for readability; shuffle or cycle between multiple files. When nothing is attached, the cover art pans Ken-Burns-style behind the page.
 - **Kiosk mode** — fullscreen toggle (F11 / double-tap), auto-hide cursor after 5s idle, attract mode screensaver after 5min idle
-- **Touch-optimized** — large tap targets (56dp), smooth scrolling, designed for touchscreen kiosks
+- **Touch + D-pad** — large tap targets (56dp), smooth scrolling, plus focus-ring D-pad navigation for Android TV / Chromecast with Google TV
 - **Dark retro theme** — a warm dark UI with gold accents that fits the vibe
 
 ## Supported Platforms
@@ -177,6 +179,58 @@ From Settings, you can:
 - **Import** from a previously exported JSON backup, adding new consoles and games without duplicating existing consoles
 
 Backup files are saved to your documents directory as `stash64_backup_<timestamp>.json`.
+
+Note: ROM files and backdrop videos are **not** included in the JSON backup —
+the size would be prohibitive. Re-attach them on the target device after
+restoring.
+
+## SummerCart64 flashcart upload (N64)
+
+Turn the N64 "Send to SummerCart64" button on under **Settings →
+SummerCart64**. The feature is off by default.
+
+What you need:
+- A [SummerCart64](https://summercart64.dev) connected via USB.
+- The [sc64deployer](https://github.com/Polprzewodnikowy/SummerCart64/releases)
+  CLI on your PATH (or pick the binary manually from settings).
+- On Linux, a udev rule so the FTDI USB device (`0403:6014`) is readable
+  by your user without sudo — otherwise every upload requires root.
+
+Workflow:
+1. Edit a game on an N64 console and attach its ROM file. ROMs get copied
+   into a ROM library directory (default `<appdocs>/roms/`, overridable
+   from settings).
+2. Open that game's detail page. A "SUMMERCART64" card appears with a
+   live status line:
+   - **Connected and ready** → Send button enabled.
+   - **Locked by N64** → power off the N64 and the button un-greys in
+     a couple of seconds.
+   - **Not connected** / **sc64deployer not found** → button disabled.
+3. Tap **Send to SC64**. Spinner spins for the second or two the flash
+   takes, then a snackbar confirms success (or shows the sc64deployer
+   error verbatim).
+
+Android / Android TV: the button is hidden because sc64deployer is
+desktop-only.
+
+## Per-game backdrops
+
+Turn **Settings → Game Page Backdrop** on. The feature is off by default.
+
+- From the edit-game form, the **Backdrops** section lets you add any
+  mix of images (`jpg/png/webp/bmp`), animated GIFs, and videos
+  (`mp4/webm/mov/m4v/mkv`). Files are copied under
+  `<appdocs>/backdrops/<game_id>/`.
+- Multiple files per game play either **shuffle** (random pick per page
+  visit) or **cycle** (crossfade through them in order). Videos loop.
+- **Blur** (σ 0–40) and **Darken overlay** (0–100 %) sliders tune
+  readability of text on top.
+- If nothing is attached, the backdrop falls back to a slow Ken-Burns
+  pan/zoom over the cover art — works day-one on every game, no extra
+  files needed.
+
+Performance tip: at 720p, 15 s muted H.264 clips run comfortably on Pi 4
+and Chromecast with Google TV. Pi 3 wants 480p.
 
 ## Project Structure
 
